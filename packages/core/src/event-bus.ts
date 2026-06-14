@@ -107,10 +107,9 @@ export function eventBus(name: string): EventBus {
         },
       };
 
-      replayBuffer.push(event);
-      if (replayBuffer.length > MAX_REPLAY) replayBuffer.shift();
-
       transport.send(event);
+      // Do NOT add to replay buffer — self-events are not replayed
+      // to maintain consistency with the source-filtering contract
     },
 
     destroy(): void {

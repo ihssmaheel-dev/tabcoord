@@ -1,0 +1,38 @@
+{
+  "name": "@tabcoord/core",
+  "version": "0.0.1",
+  "description": "Multi-tab coordination layer — shared state, leader election, distributed locks, event bus",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "echo ok",
+    "typecheck": "tsc --noEmit",
+    "size": "size-limit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@size-limit/preset-small-lib": "^11.0.0",
+    "size-limit": "^11.0.0",
+    "vitest": "^3.0.0"
+  },
+  "size-limit": [
+    {
+      "path": "./dist/index.js",
+      "limit": "3 KB"
+    }
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}

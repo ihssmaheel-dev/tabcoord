@@ -10,30 +10,37 @@ type MemoryStore = Map<string, string>;
 
 let memoryFallback: MemoryStore | null = null;
 
+let _storageResult: { set(k: string, v: string): void; get(k: string): string | null; remove(k: string): void } | null = null;
+
 function getStorage(): { set(k: string, v: string): void; get(k: string): string | null; remove(k: string): void } {
+  if (_storageResult) return _storageResult;
+
   if (typeof localStorage === 'undefined') {
     if (!memoryFallback) memoryFallback = new Map();
-    return {
+    _storageResult = {
       set: (k, v) => memoryFallback!.set(k, v),
       get: (k) => memoryFallback!.get(k) ?? null,
       remove: (k) => memoryFallback!.delete(k),
     };
+    return _storageResult;
   }
   try {
     localStorage.setItem('__tabcoord_probe__', '1');
     localStorage.removeItem('__tabcoord_probe__');
-    return {
+    _storageResult = {
       set: (k, v) => localStorage.setItem(k, v),
       get: (k) => localStorage.getItem(k),
       remove: (k) => localStorage.removeItem(k),
     };
+    return _storageResult;
   } catch {
     if (!memoryFallback) memoryFallback = new Map();
-    return {
+    _storageResult = {
       set: (k, v) => memoryFallback!.set(k, v),
       get: (k) => memoryFallback!.get(k) ?? null,
       remove: (k) => memoryFallback!.delete(k),
     };
+    return _storageResult;
   }
 }
 

@@ -3,10 +3,17 @@ import { getInstance, deleteInstance } from './instance-cache.js';
 import { clearFactoryCache } from './resolve-initial.js';
 
 export class SharedStoreHandle<T = unknown> {
-  constructor(private name: string) {}
+  private _fallback: T | undefined;
+
+  constructor(private name: string, fallback?: T) {
+    this._fallback = fallback;
+  }
 
   get(): T {
-    return (getInstance(this.name) as InternalStoreInterface<T>)?.get() as T;
+    const inst = getInstance(this.name) as InternalStoreInterface<T> | undefined;
+    if (inst) return inst.get();
+    if (this._fallback !== undefined) return this._fallback;
+    return undefined as T;
   }
 
   set(value: T | ((prev: T) => T)): void {

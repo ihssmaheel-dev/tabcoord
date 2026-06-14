@@ -39,5 +39,5 @@ export function createSharedStore<T>(
     setInstance(name, store);
   }
 
-  return new SharedStoreHandle<T>(name);
+  return new SharedStoreHandle<T>(name, resolvedInitial);
 }

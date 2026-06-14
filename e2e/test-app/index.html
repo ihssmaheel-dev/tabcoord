@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TabCoord E2E Test</title>
+</head>
+<body>
+  <p id="status">loading</p>
+  <p>Tab ID: <span id="tabId"></span></p>
+  <p>Store value: <span id="storeValue"></span></p>
+  <p>Store status: <span id="storeStatus"></span></p>
+  <p>Store subscribe count: <span id="subscribeCount">0</span></p>
+  <p>Event bus received: <span id="eventCount">0</span></p>
+  <ul id="events"></ul>
+  <button id="incrementBtn">Increment</button>
+  <button id="setStrBtn">Set "hello"</button>
+  <button id="emitEventBtn">Emit event</button>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

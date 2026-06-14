@@ -7,7 +7,13 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: 'http://localhost:5173',
+  },
+  webServer: {
+    command: 'pnpm --filter @tabcoord/e2e-test-app dev --port 5173',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 10000,
   },
   projects: [
     { name: 'chromium', use: { browserName: 'chromium' } },

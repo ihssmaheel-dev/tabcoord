@@ -70,9 +70,11 @@ export function leaderElection(
     for (const cb of demotedCallbacks) cb();
   }
 
-  // Heartbeat-based evaluation (fallback when no Web Locks)
+  // Heartbeat-based evaluation (fallback when Web Locks hasn't acquired)
   function evaluate(): void {
-    if (destroyed || hasWebLocks()) return; // skip if Web Locks handles it
+    if (destroyed) return;
+    // Skip only if Web Locks has successfully acquired the lock
+    if (hasWebLocks() && webLockAcquired) return;
     cleanStale();
 
     const alive = [tabId, ...heard.keys()].sort();
@@ -111,6 +113,7 @@ export function leaderElection(
         { mode: 'exclusive' },
         () => new Promise<void>((resolve) => {
           // Lock held — we are leader
+          webLockAcquired = true;
           if (!destroyed) becomeLeader();
 
           // Wait until released or destroyed
@@ -130,6 +133,7 @@ export function leaderElection(
       );
 
       // Lock was released (tab crashed, navigation, etc.)
+      webLockAcquired = false;
       if (!destroyed) {
         loseLeadership();
         // Try to re-acquire after a brief delay
@@ -139,7 +143,8 @@ export function leaderElection(
       }
     } catch {
       // Lock acquisition failed — fall back to heartbeat
-      // evaluate() will handle it
+      webLockAcquired = false;
+      // evaluate() will handle it on next heartbeat
     }
   }
 

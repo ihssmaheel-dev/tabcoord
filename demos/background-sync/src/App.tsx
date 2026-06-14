@@ -1,12 +1,15 @@
 import { useSharedStore } from '@tabcoord/react';
 import { syncStore, election, startPolling, stopPolling } from './store';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 function LeaderBadge() {
-  const isLeader = useSharedStore(
-    { get: () => election.isLeader, subscribe: () => () => {}, destroy: () => {} } as any,
-    (s) => s,
-  );
+  const [isLeader, setIsLeader] = useState(election.isLeader);
+
+  useEffect(() => {
+    const unsubElected = election.onElected(() => setIsLeader(true));
+    const unsubDemoted = election.onDemoted(() => setIsLeader(false));
+    return () => { unsubElected(); unsubDemoted(); };
+  }, []);
 
   return (
     <span style={{

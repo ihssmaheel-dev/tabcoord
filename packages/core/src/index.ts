@@ -34,3 +34,5 @@ export {
 export type { Transport, MessageHandler } from './transport/types.js';
 export { leaderElection } from './leader-election.js';
 export type { LeaderElection, LeaderElectionOptions } from './leader-election.js';
+export { lockManager } from './lock-manager.js';
+export type { LockManager, LockManagerOptions } from './lock-manager.js';

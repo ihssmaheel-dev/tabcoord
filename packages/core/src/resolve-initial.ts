@@ -1,7 +1,7 @@
 import type { PersistConfig } from './persist.js';
 import { rehydrateState } from './persist.js';
 
-const _factoryCache = new Map<string, WeakRef<unknown>>();
+const _factoryCache = new Map<string, WeakRef<object>>();
 const _registry = new FinalizationRegistry<string>((name) => {
   _factoryCache.delete(name);
 });

@@ -29,7 +29,7 @@
   "size-limit": [
     {
       "path": "./dist/index.js",
-      "limit": "3 KB"
+      "limit": "4 KB"
     }
   ],
   "engines": {

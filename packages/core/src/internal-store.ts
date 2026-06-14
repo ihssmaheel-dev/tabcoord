@@ -4,6 +4,7 @@ import { MessageBus, stripReservedKeys, type WireMessage } from './message-bus.j
 import type { Clock } from './clock.js';
 import { tick, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
+import { persistState } from './persist.js';
 
 type Setter<T> = (prev: T) => T;
 
@@ -24,13 +25,16 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private bus: MessageBus;
   private destroyed = false;
   private bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
+  private persistPrefix: string | null = null;
 
   constructor(
     initial: T,
     transport: Transport,
     private onError?: (err: Error) => void,
+    persistPrefix?: string,
   ) {
     this.state = initial;
+    this.persistPrefix = persistPrefix ?? null;
     this.bus = new MessageBus(transport);
 
     // Handle incoming sync-request from other tabs
@@ -121,6 +125,9 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     this.clock = tick();
     this.state = next;
+    if (this.persistPrefix) {
+      persistState(this.persistPrefix, this.state, serialize(this.clock));
+    }
     this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
     this.notify();
   }

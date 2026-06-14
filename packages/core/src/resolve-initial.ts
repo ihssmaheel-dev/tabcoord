@@ -1,17 +1,27 @@
-export interface PersistConfig<T = unknown> {
-  version: number;
-  prefix?: string;
-  onRehydrate?: (stored: unknown, clock: string) => T;
-}
+import type { PersistConfig } from './persist.js';
+import { rehydrateState } from './persist.js';
 
 const _factoryCache = new Map<string, unknown>();
 
 export function resolveInitial<T>(
   name: string,
   initial: T | (() => T),
-  _persistConfig?: PersistConfig<T>,
+  persistConfig?: PersistConfig<T>,
 ): T {
-  // 1. Persisted state — checked at call site before calling this
+  const prefix = persistConfig?.prefix ?? 'tabcoord';
+
+  // 1. Persisted state from a real previous session — source of truth
+  if (persistConfig) {
+    const stored = rehydrateState<T>(name, prefix);
+    if (stored !== undefined) {
+      const result = persistConfig.onRehydrate
+        ? persistConfig.onRehydrate(stored.state, stored.clock)
+        : stored.state;
+      _factoryCache.set(name, result);
+      return result;
+    }
+  }
+
   // 2. HMR cache — module reloaded in dev, factory already ran once
   if (_factoryCache.has(name)) {
     return _factoryCache.get(name) as T;
@@ -30,3 +40,5 @@ export function clearFactoryCache(name?: string): void {
     _factoryCache.clear();
   }
 }
+
+export type { PersistConfig };

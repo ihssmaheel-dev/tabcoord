@@ -1,1 +1,29 @@
-export {}
+export { createSharedStore } from './create-shared-store.js';
+export type { CreateSharedStoreOptions } from './create-shared-store.js';
+export { SharedStoreHandle } from './shared-store-handle.js';
+export { eventBus } from './event-bus.js';
+export type { EventBus, BusEvent } from './event-bus.js';
+export { InternalStore } from './internal-store.js';
+export { NoopInternalStore } from './noop-internal-store.js';
+export { MessageBus, stripReservedKeys } from './message-bus.js';
+export type { MessageType, WireMessage, MessageMeta } from './message-bus.js';
+export { getTabId, resetTabId } from './tab-id.js';
+export { tick, compare, serialize, deserialize } from './clock.js';
+export type { Clock } from './clock.js';
+export { chunk, createChunkAssembler } from './chunker.js';
+export type { ChunkMessage, AcceptResult } from './chunker.js';
+export { diff, apply, isPatch } from './diff.js';
+export type { Patch } from './diff.js';
+export {
+  setItem as syncStorageSetItem,
+  getItem as syncStorageGetItem,
+  removeItem as syncStorageRemoveItem,
+} from './sync-storage.js';
+export { persistState, rehydrateState, clearPersistedState } from './persist.js';
+export type { PersistConfig, PersistedState } from './persist.js';
+export { resolveInitial, clearFactoryCache } from './resolve-initial.js';
+export type { InternalStoreInterface } from './internal-store-interface.js';
+export {
+  createTransport, destroyTransport, getTransport,
+} from './transport/resolver.js';
+export type { Transport, MessageHandler } from './transport/types.js';

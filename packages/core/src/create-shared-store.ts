@@ -25,7 +25,8 @@ export function createSharedStore<T>(
 
   if (isBrowser) {
     const transport = createTransport(name);
-    const store = new InternalStore<T>(resolvedInitial, transport, onError);
+    const persistPrefix = _persist?.prefix;
+    const store = new InternalStore<T>(resolvedInitial, transport, onError, persistPrefix);
     setInstance(name, store);
   } else {
     const store = new NoopInternalStore<T>(resolvedInitial);

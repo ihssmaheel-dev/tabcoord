@@ -28,11 +28,7 @@ export function createBroadcastChannelTransport(name: string): Transport {
       handlers.clear();
     },
     isAvailable(): boolean {
-      try {
-        return typeof BroadcastChannel !== 'undefined' && !channel.closed;
-      } catch {
-        return false;
-      }
+      return typeof BroadcastChannel !== 'undefined';
     },
   };
 }

@@ -8,8 +8,13 @@ export { NoopInternalStore } from './noop-internal-store.js';
 export { MessageBus, stripReservedKeys } from './message-bus.js';
 export type { MessageType, WireMessage, MessageMeta } from './message-bus.js';
 export { getTabId, resetTabId } from './tab-id.js';
-export { tick, compare, serialize, deserialize } from './clock.js';
+export { tick, compare, serialize, deserialize, resetCounter } from './clock.js';
 export type { Clock } from './clock.js';
+
+// Bind clock reset to tab-id so resetTabId() also resets the counter
+import { _bindResetCounter } from './tab-id.js';
+import { resetCounter } from './clock.js';
+_bindResetCounter(resetCounter);
 export { chunk, createChunkAssembler } from './chunker.js';
 export type { ChunkMessage, AcceptResult } from './chunker.js';
 export { diff, apply, isPatch } from './diff.js';

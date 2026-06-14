@@ -11,6 +11,10 @@ export function tick(): Clock {
   return { counter: ++_counter, tabId: getTabId() };
 }
 
+export function resetCounter(): void {
+  _counter = 0;
+}
+
 export function compare(a: Clock, b: Clock): number {
   const diff = a.counter - b.counter;
   if (diff !== 0) return diff;

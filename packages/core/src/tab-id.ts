@@ -10,6 +10,8 @@ function generateUUID(): string {
 
 let _tabId: string | null = null;
 
+let _resetCounterFn: (() => void) | null = null;
+
 export function getTabId(): string {
   if (!_tabId) {
     _tabId = generateUUID();
@@ -19,4 +21,9 @@ export function getTabId(): string {
 
 export function resetTabId(): void {
   _tabId = null;
+  _resetCounterFn?.();
+}
+
+export function _bindResetCounter(fn: () => void): void {
+  _resetCounterFn = fn;
 }

@@ -18,5 +18,14 @@ export function useSharedStore<T, R>(
     [store],
   );
 
-  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  // Server snapshot returns selector applied to current store value
+  // During SSR this is the NoopInternalStore's initial value (no rehydration)
+  // On client this is the real store value (may have rehydrated from localStorage)
+  // This ensures server and client render the same thing on first paint
+  const getServerSnapshot = useCallback(
+    () => selectorRef.current(store.get()),
+    [store],
+  );
+
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }

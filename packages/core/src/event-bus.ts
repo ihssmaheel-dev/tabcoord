@@ -1,4 +1,4 @@
-import { createTransport, destroyTransport } from './transport/resolver.js';
+import { createTransport } from './transport/resolver.js';
 import { getTabId } from './tab-id.js';
 import { stripReservedKeys } from './message-bus.js';
 
@@ -117,7 +117,7 @@ export function eventBus(name: string): EventBus {
       unsub();
       handlers.length = 0;
       replayBuffer.length = 0;
-      destroyTransport(name);
+      transport.destroy();
     },
   };
 }

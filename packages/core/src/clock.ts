@@ -27,5 +27,7 @@ export function serialize(clock: Clock): string {
 
 export function deserialize(s: string): Clock {
   const idx = s.indexOf(':');
-  return { counter: Number(s.slice(0, idx)), tabId: s.slice(idx + 1) };
+  if (idx === -1) return { counter: 0, tabId: s || 'unknown' };
+  const counter = Number(s.slice(0, idx));
+  return { counter: Number.isNaN(counter) ? 0 : counter, tabId: s.slice(idx + 1) };
 }

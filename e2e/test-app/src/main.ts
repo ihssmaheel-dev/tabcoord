@@ -1,4 +1,4 @@
-import { createSharedStore, eventBus, getTabId } from '@tabcoord/core';
+import { createSharedStore, eventBus, getTabId, leaderElection, lockManager } from '@tabcoord/core';
 
 // Expose test API on window
 const store = createSharedStore<{ count: number; str: string }>({
@@ -7,11 +7,15 @@ const store = createSharedStore<{ count: number; str: string }>({
 });
 
 const bus = eventBus('e2e-bus');
+const election = leaderElection('e2e-leader', { heartbeatInterval: 500, timeout: 1500 });
+const lock = lockManager('e2e-lock');
 
 (window as unknown as Record<string, unknown>).__tabcoord_test = {
   getTabId,
   store,
   bus,
+  election,
+  lock,
 };
 
 // UI updates
@@ -62,4 +66,27 @@ document.getElementById('setStrBtn')!.addEventListener('click', () => {
 
 document.getElementById('emitEventBtn')!.addEventListener('click', () => {
   bus.emit('test:click', { time: Date.now() });
+});
+
+// Leader election
+const leaderStatusEl = document.getElementById('leaderStatus')!;
+function updateLeader() {
+  leaderStatusEl.textContent = election.isLeader ? 'leader' : 'follower';
+}
+election.onElected(() => updateLeader());
+election.onDemoted(() => updateLeader());
+updateLeader();
+
+// Lock manager
+const lockStatusEl = document.getElementById('lockStatus')!;
+document.getElementById('acquireLockBtn')!.addEventListener('click', async () => {
+  lockStatusEl.textContent = 'acquiring';
+  await lock.acquire(() => {
+    lockStatusEl.textContent = 'held';
+    return new Promise<void>((resolve) => {
+      // Hold for 2 seconds then release
+      setTimeout(resolve, 2000);
+    });
+  });
+  lockStatusEl.textContent = 'released';
 });

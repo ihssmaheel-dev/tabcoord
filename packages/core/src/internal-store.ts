@@ -5,7 +5,6 @@ import type { Clock } from './clock.js';
 import { tick, compare, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
 import { persistState } from './persist.js';
-import { diff, apply, type Patch } from './diff.js';
 
 type Setter<T> = (prev: T) => T;
 
@@ -28,18 +27,15 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private outerTimer: ReturnType<typeof setTimeout> | null = null;
   private bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
   private persistPrefix: string | null = null;
-  private mergeStrategy: 'whole' | 'field';
 
   constructor(
     initial: T,
     transport: Transport,
     private onError?: (err: Error) => void,
     persistPrefix?: string,
-    mergeStrategy: 'whole' | 'field' = 'whole',
   ) {
     this.state = initial;
     this.persistPrefix = persistPrefix ?? null;
-    this.mergeStrategy = mergeStrategy;
     this.bus = new MessageBus(transport);
 
     // Handle incoming sync-request from other tabs
@@ -70,11 +66,10 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       if (this._status !== 'bootstrap') return;
       const payload = msg.payload as { state: T; clock: string };
       if (payload.state !== undefined) {
-        const incomingClock = deserialize(payload.clock);
-        const cmp = compare(incomingClock, this.clock);
-        if (cmp <= 0) return; // reject stale or equal state
+        // During bootstrap, accept any response with state — don't check clocks
+        // Both tabs start with counter=0, so clock comparison would reject valid responses
         this.state = payload.state;
-        this.clock = incomingClock;
+        this.clock = deserialize(payload.clock);
       }
       // Replay queued writes on top of received state (with reserved key stripping)
       for (const write of this.writeQueue) {
@@ -98,40 +93,10 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     // Handle incoming state-patch from other tabs (live sync)
     this.bus.on('state-patch', (msg: WireMessage) => {
       if (this._status !== 'synced') return;
-      const payload = msg.payload as { state: T | Patch; clock: string };
+      const payload = msg.payload as { state: T; clock: string };
       if (payload.state === undefined) return;
-      const incomingClock = deserialize(payload.clock);
-      const cmp = compare(incomingClock, this.clock);
-      if (cmp <= 0) return; // reject stale state
-
-      if (this.mergeStrategy === 'field') {
-        // Field-level merge: shallow merge changed fields into current state
-        const incoming = payload.state as Record<string, unknown>;
-        if (incoming && typeof incoming === 'object' && '$patch' in incoming) {
-          // It's a diff patch — apply only changed fields
-          const current = this.state as Record<string, unknown>;
-          const merged = { ...current };
-          for (const key of Object.keys(incoming)) {
-            if (key === '$patch') continue;
-            if (incoming[key] === undefined) {
-              delete merged[key];
-            } else {
-              merged[key] = incoming[key];
-            }
-          }
-          this.state = merged as unknown as T;
-        } else {
-          // Full replacement (arrays, primitives, etc.)
-          this.state = payload.state as T;
-        }
-      } else {
-        // Whole replacement: apply patch or full replacement
-        this.state = typeof payload.state === 'object' && payload.state !== null && '$patch' in (payload.state as Record<string, unknown>)
-          ? apply(this.state as Record<string, unknown>, payload.state as Patch) as T
-          : payload.state as T;
-      }
-
-      this.clock = incomingClock;
+      this.state = payload.state as T;
+      this.clock = deserialize(payload.clock);
       if (this.persistPrefix) {
         persistState(this.persistPrefix, this.state, serialize(this.clock));
       }
@@ -199,13 +164,12 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     if (JSON.stringify(next) === JSON.stringify(this.state)) return;
 
-    const patch = diff(this.state as Record<string, unknown>, next as Record<string, unknown>);
     this.clock = tick();
     this.state = next;
     if (this.persistPrefix) {
       persistState(this.persistPrefix, this.state, serialize(this.clock));
     }
-    this.bus.emit('state-patch', { state: patch, clock: serialize(this.clock) }, this.clock);
+    this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
     this.notify();
   }
 

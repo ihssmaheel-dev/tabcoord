@@ -8,9 +8,11 @@ test.describe('multi-tab state sync', () => {
     await tabA.goto('/');
     await tabB.goto('/');
 
-    // Wait for both tabs to be ready
+    // Wait for both tabs to be ready and synced
     await expect(tabA.locator('#status')).toHaveText('ready');
     await expect(tabB.locator('#status')).toHaveText('ready');
+    await expect(tabA.locator('#storeStatus')).toHaveText('synced');
+    await expect(tabB.locator('#storeStatus')).toHaveText('synced');
 
     // Tab A increments
     await tabA.click('#incrementBtn');
@@ -45,10 +47,15 @@ test.describe('multi-tab state sync', () => {
 
     await expect(tabA.locator('#status')).toHaveText('ready');
     await expect(tabB.locator('#status')).toHaveText('ready');
+    await expect(tabA.locator('#storeStatus')).toHaveText('synced');
+    await expect(tabB.locator('#storeStatus')).toHaveText('synced');
 
     // Tab A sets "hello"
     await tabA.click('#setStrBtn');
     await expect(tabB.locator('#storeValue')).toHaveText('{"count":0,"str":"hello"}');
+
+    // Wait for sync to settle
+    await tabA.waitForTimeout(500);
 
     // Tab B increments
     await tabB.click('#incrementBtn');
@@ -104,6 +111,8 @@ test.describe('cross-browser context', () => {
 
     await expect(tabA.locator('#status')).toHaveText('ready');
     await expect(tabB.locator('#status')).toHaveText('ready');
+    await expect(tabA.locator('#storeStatus')).toHaveText('synced');
+    await expect(tabB.locator('#storeStatus')).toHaveText('synced');
 
     await tabA.click('#incrementBtn');
     await expect(tabA.locator('#storeValue')).toHaveText('{"count":1,"str":""}');

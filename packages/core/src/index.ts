@@ -1,11 +1,11 @@
 export { createSharedStore } from './create-shared-store.js';
 export type { CreateSharedStoreOptions } from './create-shared-store.js';
 export { SharedStoreHandle } from './shared-store-handle.js';
-export { eventBus } from './event-bus.js';
+export { eventBus, resetEventId } from './event-bus.js';
 export type { EventBus, BusEvent } from './event-bus.js';
 export { InternalStore } from './internal-store.js';
 export { NoopInternalStore } from './noop-internal-store.js';
-export { MessageBus, stripReservedKeys } from './message-bus.js';
+export { MessageBus, stripReservedKeys, resetMsgId } from './message-bus.js';
 export type { MessageType, WireMessage, MessageMeta } from './message-bus.js';
 export { getTabId, resetTabId } from './tab-id.js';
 export { tick, compare, serialize, deserialize, resetCounter } from './clock.js';

@@ -28,6 +28,10 @@ function nextId(): string {
   return `${getTabId()}:${++_eventId}`;
 }
 
+export function resetEventId(): void {
+  _eventId = 0;
+}
+
 function patternToRegex(pattern: string): { regex: RegExp | null; isWildcard: boolean } {
   if (pattern.includes('*')) {
     const escaped = pattern

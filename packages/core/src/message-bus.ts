@@ -34,6 +34,10 @@ function generateId(): string {
   return `${getTabId()}:${++_msgId}`;
 }
 
+export function resetMsgId(): void {
+  _msgId = 0;
+}
+
 export function stripReservedKeys<T extends Record<string, unknown>>(payload: T): T {
   const result = { ...payload };
   delete result['_meta'];

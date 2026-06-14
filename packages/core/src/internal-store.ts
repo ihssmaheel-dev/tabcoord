@@ -2,7 +2,7 @@ import type { InternalStoreInterface } from './internal-store-interface.js';
 import type { Transport } from './transport/types.js';
 import { MessageBus, stripReservedKeys, type WireMessage } from './message-bus.js';
 import type { Clock } from './clock.js';
-import { tick, serialize, deserialize } from './clock.js';
+import { tick, compare, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
 import { persistState } from './persist.js';
 
@@ -24,6 +24,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private writeQueue: Array<T | Setter<T>> = [];
   private bus: MessageBus;
   private destroyed = false;
+  private outerTimer: ReturnType<typeof setTimeout> | null = null;
   private bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
   private persistPrefix: string | null = null;
 
@@ -39,8 +40,20 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     // Handle incoming sync-request from other tabs
     this.bus.on('sync-request', (msg: WireMessage) => {
-      if (this._status !== 'synced') return;
       const payload = msg.payload as { knownClock?: string } | undefined;
+      const senderClock = payload?.knownClock
+        ? deserialize(payload.knownClock)
+        : null;
+
+      // Allow bootstrap tabs to respond to sync-requests (fixes dual-leader race)
+      // but prevent two bootstrap tabs from responding to each other
+      if (this._status === 'bootstrap') {
+        if (!senderClock) return;
+        const cmp = compare(this.clock, senderClock);
+        if (cmp > 0) return; // sender has higher clock, we yield
+        if (cmp === 0 && this.clock.tabId > senderClock.tabId) return; // tiebreak: higher tabId yields
+      }
+
       this.bus.emit('sync-response', {
         state: this.state,
         clock: serialize(this.clock),
@@ -53,20 +66,45 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       if (this._status !== 'bootstrap') return;
       const payload = msg.payload as { state: T; clock: string };
       if (payload.state !== undefined) {
+        const incomingClock = deserialize(payload.clock);
+        const cmp = compare(incomingClock, this.clock);
+        if (cmp <= 0) return; // reject stale or equal state
         this.state = payload.state;
-        this.clock = deserialize(payload.clock);
+        this.clock = incomingClock;
       }
-      // Replay queued writes on top of received state
+      // Replay queued writes on top of received state (with reserved key stripping)
       for (const write of this.writeQueue) {
         if (typeof write === 'function') {
-          this.state = (write as Setter<T>)(this.state);
+          const resolved = (write as Setter<T>)(this.state);
+          this.state = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
+            ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
+            : resolved;
         } else {
-          this.state = write as T;
+          this.state = typeof write === 'object' && write !== null && !Array.isArray(write)
+            ? (stripReservedKeys(write as unknown as Record<string, unknown>) as unknown as T)
+            : write as T;
         }
       }
       this.writeQueue = [];
       this._status = 'synced';
       this.bus.emit('sync-ack', { tabId: getTabId() }, this.clock);
+      this.notify();
+    });
+
+    // Handle incoming state-patch from other tabs (live sync)
+    this.bus.on('state-patch', (msg: WireMessage) => {
+      if (this._status !== 'synced') return;
+      const payload = msg.payload as { state: T; clock: string };
+      if (payload.state === undefined) return;
+      const incomingClock = deserialize(payload.clock);
+      const cmp = compare(incomingClock, this.clock);
+      if (cmp <= 0) return; // reject stale state
+      this.state = payload.state;
+      this.clock = incomingClock;
+      if (this.persistPrefix) {
+        persistState(this.persistPrefix, this.state, serialize(this.clock));
+      }
+      this.notify();
     });
 
     // Begin bootstrap
@@ -74,7 +112,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   }
 
   private startBootstrap(): void {
-    setTimeout(() => {
+    this.outerTimer = setTimeout(() => {
       if (this.destroyed) return;
       this.bus.emit('sync-request', { knownClock: serialize(this.clock) }, this.clock);
 
@@ -86,9 +124,14 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
         this.writeQueue = [];
         for (const write of queued) {
           if (typeof write === 'function') {
-            this.state = (write as Setter<T>)(this.state);
+            const resolved = (write as Setter<T>)(this.state);
+            this.state = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
+              ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
+              : resolved;
           } else {
-            this.state = write as T;
+            this.state = typeof write === 'object' && write !== null && !Array.isArray(write)
+              ? (stripReservedKeys(write as unknown as Record<string, unknown>) as unknown as T)
+              : write as T;
           }
         }
         this.notify();
@@ -123,6 +166,8 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
         : value;
     }
 
+    if (JSON.stringify(next) === JSON.stringify(this.state)) return;
+
     this.clock = tick();
     this.state = next;
     if (this.persistPrefix) {
@@ -139,6 +184,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
   destroy(): void {
     this.destroyed = true;
+    if (this.outerTimer) clearTimeout(this.outerTimer);
     if (this.bootstrapTimer) clearTimeout(this.bootstrapTimer);
     this.bus.destroy();
     this.subscribers.clear();

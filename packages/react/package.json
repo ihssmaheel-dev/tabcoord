@@ -1,0 +1,37 @@
+{
+  "name": "@tabcoord/react",
+  "version": "0.0.1",
+  "description": "React bindings for @tabcoord/core",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "echo ok",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@tabcoord/core": "workspace:*",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@tabcoord/core": "workspace:*",
+    "@testing-library/react": "^16.0.0",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

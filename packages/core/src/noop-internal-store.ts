@@ -5,6 +5,7 @@ import { getTabId } from './tab-id.js';
 export class NoopInternalStore<T> implements InternalStoreInterface<T> {
   private state: T;
   private clock: Clock = { counter: 0, tabId: getTabId() };
+  private subscribers = new Set<(state: T) => void>();
 
   constructor(initial: T) {
     this.state = initial;
@@ -20,10 +21,14 @@ export class NoopInternalStore<T> implements InternalStoreInterface<T> {
     } else {
       this.state = value;
     }
+    for (const fn of this.subscribers) {
+      try { fn(this.state); } catch { /* ignore */ }
+    }
   }
 
-  subscribe(_fn: (state: T) => void): () => void {
-    return () => {};
+  subscribe(fn: (state: T) => void): () => void {
+    this.subscribers.add(fn);
+    return () => { this.subscribers.delete(fn); };
   }
 
   destroy(): void {

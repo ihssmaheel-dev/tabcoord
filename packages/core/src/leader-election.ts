@@ -22,6 +22,10 @@ interface HeartbeatPayload {
 const DEFAULT_HEARTBEAT_INTERVAL = 2000;
 const DEFAULT_TIMEOUT = 5000;
 
+function hasWebLocks(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.locks !== 'undefined';
+}
+
 export function leaderElection(
   name: string,
   options?: LeaderElectionOptions,
@@ -35,6 +39,8 @@ export function leaderElection(
 
   let _isLeader = false;
   let destroyed = false;
+  let webLockAcquired = false;
+  let webLockRelease: (() => void) | null = null;
 
   const heard = new Map<string, number>(); // tabId -> last heartbeat timestamp
   const electedCallbacks: Array<() => void> = [];
@@ -50,23 +56,32 @@ export function leaderElection(
     }
   }
 
-  // Determine if this tab should be leader
+  // Fire elected callbacks
+  function becomeLeader(): void {
+    if (_isLeader || destroyed) return;
+    _isLeader = true;
+    for (const cb of electedCallbacks) cb();
+  }
+
+  // Fire demoted callbacks
+  function loseLeadership(): void {
+    if (!_isLeader || destroyed) return;
+    _isLeader = false;
+    for (const cb of demotedCallbacks) cb();
+  }
+
+  // Heartbeat-based evaluation (fallback when no Web Locks)
   function evaluate(): void {
-    if (destroyed) return;
+    if (destroyed || hasWebLocks()) return; // skip if Web Locks handles it
     cleanStale();
 
-    // Collect all alive tabs (including self)
     const alive = [tabId, ...heard.keys()].sort();
-
-    // Leader is the lowest tabId among alive tabs
     const newLeader = alive[0] === tabId;
 
-    if (newLeader && !_isLeader) {
-      _isLeader = true;
-      for (const cb of electedCallbacks) cb();
-    } else if (!newLeader && _isLeader) {
-      _isLeader = false;
-      for (const cb of demotedCallbacks) cb();
+    if (newLeader) {
+      becomeLeader();
+    } else {
+      loseLeadership();
     }
   }
 
@@ -85,21 +100,62 @@ export function leaderElection(
     evaluate();
   }, heartbeatInterval);
 
+  // Web Locks acceleration
+  async function tryWebLock(): Promise<void> {
+    if (!hasWebLocks() || destroyed) return;
+
+    try {
+      // Request the lock — blocks until granted
+      const lock = await navigator.locks.request(
+        `leader:${name}`,
+        { mode: 'exclusive' },
+        () => new Promise<void>((resolve) => {
+          // Lock held — we are leader
+          if (!destroyed) becomeLeader();
+
+          // Wait until released or destroyed
+          const check = setInterval(() => {
+            if (destroyed) {
+              clearInterval(check);
+              resolve();
+            }
+          }, 500);
+
+          // Store release function for cleanup
+          webLockRelease = () => {
+            clearInterval(check);
+            resolve();
+          };
+        }),
+      );
+
+      // Lock was released (tab crashed, navigation, etc.)
+      if (!destroyed) {
+        loseLeadership();
+        // Try to re-acquire after a brief delay
+        setTimeout(() => {
+          if (!destroyed) tryWebLock();
+        }, 100);
+      }
+    } catch {
+      // Lock acquisition failed — fall back to heartbeat
+      // evaluate() will handle it
+    }
+  }
+
   // Handle pagehide/visibilitychange for immediate step-down
   function handleVisibilityChange(): void {
     if (destroyed) return;
     if (document.visibilityState === 'hidden' && _isLeader) {
-      _isLeader = false;
+      loseLeadership();
       heard.delete(tabId);
-      for (const cb of demotedCallbacks) cb();
     }
   }
 
   function handlePageHide(): void {
     if (destroyed) return;
     if (_isLeader) {
-      _isLeader = false;
-      for (const cb of demotedCallbacks) cb();
+      loseLeadership();
     }
   }
 
@@ -108,11 +164,15 @@ export function leaderElection(
     window.addEventListener('pagehide', handlePageHide);
   }
 
-  // Initial evaluation — start as candidate
-  // If no other tabs heard after timeout, this tab becomes leader
-  setTimeout(() => {
-    if (!destroyed) evaluate();
-  }, timeout);
+  // Start: try Web Locks first, fall back to heartbeat-based election
+  if (hasWebLocks()) {
+    tryWebLock();
+  } else {
+    // Heartbeat-based: evaluate after timeout
+    setTimeout(() => {
+      if (!destroyed) evaluate();
+    }, timeout);
+  }
 
   return {
     get isLeader() {
@@ -139,6 +199,10 @@ export function leaderElection(
       if (destroyed) return;
       destroyed = true;
       clearInterval(heartbeatTimer);
+      if (webLockRelease) {
+        webLockRelease();
+        webLockRelease = null;
+      }
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('pagehide', handlePageHide);

@@ -14,15 +14,7 @@ test.describe('multi-tab state sync', () => {
 
     // Tab A increments
     await tabA.click('#incrementBtn');
-    await tabA.waitForTimeout(300); // allow sync to propagate
-
-    // Tab B should see the incremented value
-    const bValue = await tabB.locator('#storeValue').textContent();
-    expect(JSON.parse(bValue!)).toEqual({ count: 1, str: '' });
-
-    // Tab A also sees it
-    const aValue = await tabA.locator('#storeValue').textContent();
-    expect(JSON.parse(aValue!)).toEqual({ count: 1, str: '' });
+    await expect(tabB.locator('#storeValue')).toHaveText('{"count":1,"str":""}');
   });
 
   test('three tabs converge on initial state', async ({ context }) => {
@@ -56,17 +48,11 @@ test.describe('multi-tab state sync', () => {
 
     // Tab A sets "hello"
     await tabA.click('#setStrBtn');
-    await tabA.waitForTimeout(300);
-
-    let bVal = await tabB.locator('#storeValue').textContent();
-    expect(JSON.parse(bVal!)).toEqual({ count: 0, str: 'hello' });
+    await expect(tabB.locator('#storeValue')).toHaveText('{"count":0,"str":"hello"}');
 
     // Tab B increments
     await tabB.click('#incrementBtn');
-    await tabB.waitForTimeout(300);
-
-    let aVal = await tabA.locator('#storeValue').textContent();
-    expect(JSON.parse(aVal!)).toEqual({ count: 1, str: 'hello' });
+    await expect(tabA.locator('#storeValue')).toHaveText('{"count":1,"str":"hello"}');
   });
 });
 
@@ -83,15 +69,10 @@ test.describe('multi-tab event bus', () => {
 
     // Tab A emits an event
     await tabA.click('#emitEventBtn');
-    await tabA.waitForTimeout(300);
-
-    // Tab B should receive it
-    const bEvents = await tabB.locator('#eventCount').textContent();
-    expect(Number(bEvents)).toBeGreaterThanOrEqual(1);
+    await expect(tabB.locator('#eventCount')).toHaveText('1');
 
     // Tab A should NOT have received its own event (filtered by source)
-    const aEvents = await tabA.locator('#eventCount').textContent();
-    expect(Number(aEvents)).toBe(0);
+    await expect(tabA.locator('#eventCount')).toHaveText('0');
   });
 
   test('multiple events are received in order', async ({ context }) => {
@@ -108,10 +89,7 @@ test.describe('multi-tab event bus', () => {
     await tabA.click('#emitEventBtn');
     await tabA.click('#emitEventBtn');
     await tabA.click('#emitEventBtn');
-    await tabA.waitForTimeout(500);
-
-    const bEvents = await tabB.locator('#eventCount').textContent();
-    expect(Number(bEvents)).toBe(3);
+    await expect(tabB.locator('#eventCount')).toHaveText('3');
   });
 });
 
@@ -128,12 +106,8 @@ test.describe('cross-browser context', () => {
     await expect(tabB.locator('#status')).toHaveText('ready');
 
     await tabA.click('#incrementBtn');
-    await tabA.waitForTimeout(300);
-
-    const aVal = await tabA.locator('#storeValue').textContent();
-    const bVal = await tabB.locator('#storeValue').textContent();
-    expect(JSON.parse(aVal!)).toEqual({ count: 1, str: '' });
-    expect(JSON.parse(bVal!)).toEqual({ count: 1, str: '' });
+    await expect(tabA.locator('#storeValue')).toHaveText('{"count":1,"str":""}');
+    await expect(tabB.locator('#storeValue')).toHaveText('{"count":1,"str":""}');
 
     await context.close();
   });

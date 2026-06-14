@@ -12,7 +12,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -28,6 +30,7 @@
     "@tabcoord/core": "workspace:*",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",
+    "jsdom": "^29.1.1",
     "react": "^19.0.0",
     "vitest": "^3.0.0"
   },

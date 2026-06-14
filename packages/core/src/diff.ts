@@ -1,10 +1,14 @@
+const PATCH_SENTINEL = '$patch';
+
 export interface Patch {
-  _t: 'patch';
+  $patch: true;
   [key: string]: unknown;
 }
 
 export function isPatch(value: unknown): value is Patch {
-  return typeof value === 'object' && value !== null && (value as Record<string, unknown>)._t === 'patch';
+  return typeof value === 'object' && value !== null
+    && (value as Record<string, unknown>)[PATCH_SENTINEL] === true
+    && Object.keys(value).length > 1;
 }
 
 export function diff<T extends Record<string, unknown>>(prev: T, next: T): Patch | T {
@@ -12,13 +16,13 @@ export function diff<T extends Record<string, unknown>>(prev: T, next: T): Patch
     return next;
   }
 
-  const changed: Record<string, unknown> = { _t: 'patch' as const };
+  const changed: Record<string, unknown> = { [PATCH_SENTINEL]: true as const };
   let hasChanges = false;
 
   const allKeys = new Set([...Object.keys(prev), ...Object.keys(next)]);
 
   for (const key of allKeys) {
-    if (key === '_t') continue;
+    if (key === PATCH_SENTINEL) continue;
     if (prev[key] !== next[key]) {
       changed[key] = next[key];
       hasChanges = true;
@@ -33,7 +37,7 @@ export function apply<T extends Record<string, unknown>>(state: T, patch: Patch 
 
   const result = { ...state } as Record<string, unknown>;
   for (const key of Object.keys(patch)) {
-    if (key === '_t') continue;
+    if (key === PATCH_SENTINEL) continue;
     if (patch[key] === undefined) {
       delete result[key];
     } else {

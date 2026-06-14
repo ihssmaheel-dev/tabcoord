@@ -8,12 +8,15 @@
     "typecheck": "turbo run typecheck",
     "size": "turbo run size",
     "clean": "turbo run clean",
-    "dev": "turbo run dev"
+    "dev": "turbo run dev",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "playwright": "^1.60.0",
+    "prettier": "^3.5.0",
     "turbo": "^2.5.0",
-    "typescript": "^5.8.0",
-    "prettier": "^3.5.0"
+    "typescript": "^5.8.0"
   },
   "packageManager": "pnpm@10.10.0",
   "engines": {

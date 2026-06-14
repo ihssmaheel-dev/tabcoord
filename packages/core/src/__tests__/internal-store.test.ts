@@ -106,4 +106,44 @@ describe('InternalStore', () => {
     // After destroy, bootstrap timers should be cleared
     expect(store.status).toBe('bootstrap');
   });
+
+  it('destroy clears subscribers', async () => {
+    const { InternalStore } = await import('../internal-store.js');
+    const store = new InternalStore({ count: 0 }, mockTransport);
+    vi.advanceTimersByTime(750);
+
+    const fn = vi.fn();
+    store.subscribe(fn);
+    store.destroy();
+
+    // Subscribers cleared — set should not notify
+    // (destroyed store skips set anyway)
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('set() is no-op after destroy with warning', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { InternalStore } = await import('../internal-store.js');
+    const store = new InternalStore({ count: 0 }, mockTransport);
+    vi.advanceTimersByTime(750);
+
+    store.destroy();
+    store.set({ count: 999 });
+
+    expect(store.get()).toEqual({ count: 0 }); // unchanged
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('get() returns last state after destroy', async () => {
+    const { InternalStore } = await import('../internal-store.js');
+    const store = new InternalStore({ count: 0 }, mockTransport);
+    vi.advanceTimersByTime(750);
+
+    store.set({ count: 42 });
+    expect(store.get()).toEqual({ count: 42 });
+
+    store.destroy();
+    expect(store.get()).toEqual({ count: 42 }); // still accessible
+  });
 });

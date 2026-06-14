@@ -46,9 +46,12 @@ export function chunk(
 export interface AcceptResult {
   done: boolean;
   data?: string;
+  failed?: boolean;
 }
 
-export function createChunkAssembler(): {
+export function createChunkAssembler(options?: {
+  onTimeout?: (id: string, chunksReceived: number, totalChunks: number) => void;
+}): {
   accept: (msg: ChunkMessage) => AcceptResult;
   destroy: () => void;
 } {
@@ -109,6 +112,7 @@ export function createChunkAssembler(): {
         entry.timeoutHandle = setTimeout(() => {
           if (!entry!.resolved) {
             entry!.resolved = true;
+            options?.onTimeout?.(id, entry!.chunks.size, totalChunks);
             buffers.delete(id);
           }
         }, REASSEMBLY_TIMEOUT);

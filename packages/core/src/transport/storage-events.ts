@@ -11,7 +11,9 @@ export function createStorageEventTransport(name: string): Transport {
   function handleStorage(e: StorageEvent): void {
     if (e.key !== key || !e.newValue) return;
     try {
-      const msg = JSON.parse(e.newValue) as Record<string, unknown>;
+      // Strip timestamp suffix appended by send() to force StorageEvent
+      const jsonStr = e.newValue.includes('|') ? e.newValue.substring(0, e.newValue.lastIndexOf('|')) : e.newValue;
+      const msg = JSON.parse(jsonStr) as Record<string, unknown>;
       const meta = msg?._meta as Record<string, unknown> | undefined;
       if (meta?.source === tabId) return;
       for (const h of handlers) h(msg);
@@ -29,7 +31,10 @@ export function createStorageEventTransport(name: string): Transport {
     },
     send(data: unknown): void {
       try {
-        localStorage.setItem(key, JSON.stringify(data));
+        const json = JSON.stringify(data);
+        // Workaround: same-value writes don't fire StorageEvent per HTML spec.
+        // Append a timestamp to ensure the value always changes.
+        localStorage.setItem(key, json + '|' + Date.now());
       } catch {
         // caller handles storage errors via onError
       }

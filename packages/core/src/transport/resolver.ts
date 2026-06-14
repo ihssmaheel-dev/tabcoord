@@ -16,12 +16,18 @@ export function createTransport(name: string): Transport {
   let transport: Transport;
 
   if (isBrowser) {
-    if (createBroadcastChannelTransport(name).isAvailable()) {
-      transport = createBroadcastChannelTransport(name);
-    } else if (createStorageEventTransport(name).isAvailable()) {
-      transport = createStorageEventTransport(name);
+    const probe = createBroadcastChannelTransport(name);
+    if (probe.isAvailable()) {
+      transport = probe;
     } else {
-      transport = createNoopTransport();
+      probe.destroy();
+      const storageProbe = createStorageEventTransport(name);
+      if (storageProbe.isAvailable()) {
+        transport = storageProbe;
+      } else {
+        storageProbe.destroy();
+        transport = createNoopTransport();
+      }
     }
   } else {
     transport = createNoopTransport();

@@ -32,3 +32,5 @@ export {
   createTransport, destroyTransport, getTransport,
 } from './transport/resolver.js';
 export type { Transport, MessageHandler } from './transport/types.js';
+export { leaderElection } from './leader-election.js';
+export type { LeaderElection, LeaderElectionOptions } from './leader-election.js';

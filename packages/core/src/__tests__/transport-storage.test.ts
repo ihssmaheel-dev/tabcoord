@@ -43,7 +43,10 @@ describe('storage-events transport', () => {
     t.send({ a: 1 });
     const key = Array.from(store.keys()).find(k => k.includes('test'))!;
     expect(key).toBeTruthy();
-    const parsed = JSON.parse(store.get(key)!);
+    const raw = store.get(key)!;
+    // Strip timestamp suffix appended by send()
+    const jsonStr = raw.includes('|') ? raw.substring(0, raw.lastIndexOf('|')) : raw;
+    const parsed = JSON.parse(jsonStr);
     expect(parsed).toMatchObject({ a: 1 });
     t.destroy();
   });

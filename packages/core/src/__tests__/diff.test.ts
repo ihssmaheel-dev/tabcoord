@@ -14,26 +14,26 @@ describe('diff', () => {
     const prev = { a: 1, b: 'x', c: true };
     const next = { a: 2, b: 'x', c: false };
     const result = diff(prev, next);
-    expect(result).toEqual({ _t: 'patch', a: 2, c: false });
+    expect(result).toEqual({ $patch: true, a: 2, c: false });
   });
 
   it('detects added fields', () => {
     const prev = { a: 1 };
     const next = { a: 1, b: 'new' };
-    expect(diff(prev, next)).toEqual({ _t: 'patch', b: 'new' });
+    expect(diff(prev, next)).toEqual({ $patch: true, b: 'new' });
   });
 
   it('marks deleted fields as undefined', () => {
     const prev = { a: 1, b: 'x' };
     const next = { a: 1 };
-    expect(diff(prev, next)).toEqual({ _t: 'patch', b: undefined });
+    expect(diff(prev, next)).toEqual({ $patch: true, b: undefined });
   });
 });
 
 describe('apply', () => {
   it('applies patch to shallow object', () => {
     const obj = { a: 1, b: 'x' };
-    const result = apply(obj, { _t: 'patch', a: 2, c: true });
+    const result = apply(obj, { $patch: true, a: 2, c: true } as any);
     expect(result).toEqual({ a: 2, b: 'x', c: true });
     // Original unchanged
     expect(obj).toEqual({ a: 1, b: 'x' });
@@ -41,7 +41,7 @@ describe('apply', () => {
 
   it('removes keys set to undefined', () => {
     const obj = { a: 1, b: 'x' };
-    const result = apply(obj, { _t: 'patch', b: undefined });
+    const result = apply(obj, { $patch: true, b: undefined } as any);
     expect(result).toEqual({ a: 1 });
     expect('b' in result).toBe(false);
   });
@@ -53,9 +53,13 @@ describe('apply', () => {
 });
 
 describe('isPatch', () => {
-  it('returns true for objects with _t: patch', () => {
-    expect(isPatch({ _t: 'patch' })).toBe(true);
-    expect(isPatch({ _t: 'patch', a: 1 })).toBe(true);
+  it('returns true for objects with $patch sentinel', () => {
+    expect(isPatch({ $patch: true })).toBe(true);
+    expect(isPatch({ $patch: true, a: 1 })).toBe(true);
+  });
+
+  it('returns false for old _t sentinel', () => {
+    expect(isPatch({ _t: 'patch' })).toBe(false);
   });
 
   it('returns false for non-objects', () => {
@@ -63,5 +67,10 @@ describe('isPatch', () => {
     expect(isPatch(42)).toBe(false);
     expect(isPatch('str')).toBe(false);
     expect(isPatch(undefined)).toBe(false);
+  });
+
+  it('returns false for single-key $patch without value', () => {
+    // $patch: true alone with no other keys is still a patch (matches interface)
+    expect(isPatch({ $patch: true })).toBe(true);
   });
 });

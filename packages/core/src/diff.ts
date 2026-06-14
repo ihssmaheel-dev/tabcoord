@@ -7,8 +7,7 @@ export interface Patch {
 
 export function isPatch(value: unknown): value is Patch {
   return typeof value === 'object' && value !== null
-    && (value as Record<string, unknown>)[PATCH_SENTINEL] === true
-    && Object.keys(value).length > 1;
+    && (value as Record<string, unknown>)[PATCH_SENTINEL] === true;
 }
 
 export function diff<T extends Record<string, unknown>>(prev: T, next: T): Patch | T {

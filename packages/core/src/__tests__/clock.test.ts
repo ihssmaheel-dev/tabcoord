@@ -29,13 +29,13 @@ describe('clock', () => {
 
   it('deserialize handles strings without colon', async () => {
     const { deserialize } = await import('../clock.js');
-    // indexOf returns -1, slice handles edge cases
+    // indexOf returns -1, returns fallback clock
     const empty = deserialize('');
     expect(empty.counter).toBe(0);
-    expect(empty.tabId).toBe('');
+    expect(empty.tabId).toBe('unknown');
 
     const noColon = deserialize('abc');
-    expect(Number.isNaN(noColon.counter)).toBe(true);
+    expect(noColon.counter).toBe(0);
     expect(noColon.tabId).toBe('abc');
   });
 

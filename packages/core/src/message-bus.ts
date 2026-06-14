@@ -78,7 +78,7 @@ export class MessageBus {
       this.handlers.set(type, new Set());
     }
     this.handlers.get(type)!.add(handler);
-    return () => this.handlers.delete(type);
+    return () => { this.handlers.get(type)?.delete(handler); };
   }
 
   off(type: MessageType, handler: MessageHandler): void {

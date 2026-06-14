@@ -80,6 +80,12 @@ importers:
         specifier: ^6.0.0
         version: 6.4.3(jiti@2.7.0)
 
+  demos/ssr-smoke:
+    dependencies:
+      '@tabcoord/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+
   e2e/test-app:
     devDependencies:
       vite:

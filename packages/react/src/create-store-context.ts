@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode, createElement } from 'react';
+import { createContext, useContext, useEffect, type ReactNode, createElement } from 'react';
 import { createSharedStore, type SharedStoreHandle, type CreateSharedStoreOptions } from '@tabcoord/core';
 
 export function createStoreContext<T>(options: CreateSharedStoreOptions<T>) {
@@ -7,6 +7,10 @@ export function createStoreContext<T>(options: CreateSharedStoreOptions<T>) {
   const Ctx = createContext<SharedStoreHandle<T>>(store);
 
   function Provider({ children }: { children: ReactNode }) {
+    useEffect(() => {
+      return () => { store.destroy(); };
+    }, []);
+
     return createElement(Ctx.Provider, { value: store }, children);
   }
 

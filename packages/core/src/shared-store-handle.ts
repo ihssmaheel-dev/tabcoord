@@ -1,5 +1,6 @@
 import type { InternalStoreInterface } from './internal-store-interface.js';
 import { getInstance, deleteInstance } from './instance-cache.js';
+import { clearFactoryCache } from './resolve-initial.js';
 
 export class SharedStoreHandle<T = unknown> {
   constructor(private name: string) {}
@@ -24,6 +25,7 @@ export class SharedStoreHandle<T = unknown> {
       inst.destroy();
       deleteInstance(this.name);
     }
+    clearFactoryCache(this.name);
   }
 
   get status(): 'bootstrap' | 'synced' {

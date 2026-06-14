@@ -10,7 +10,9 @@ export function createBroadcastChannelTransport(name: string): Transport {
     const msg = event.data as Record<string, unknown>;
     const meta = msg?._meta as Record<string, unknown> | undefined;
     if (meta?.source === tabId) return;
-    for (const h of handlers) h(msg);
+    for (const h of handlers) {
+      try { h(msg); } catch { /* one handler throw should not block others */ }
+    }
   };
 
   return {

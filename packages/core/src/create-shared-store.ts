@@ -1,7 +1,7 @@
 import { SharedStoreHandle } from './shared-store-handle.js';
 import { InternalStore } from './internal-store.js';
 import { NoopInternalStore } from './noop-internal-store.js';
-import { setInstance } from './instance-cache.js';
+import { setInstance, getInstance } from './instance-cache.js';
 import { resolveInitial } from './resolve-initial.js';
 import { createTransport } from './transport/resolver.js';
 import type { PersistConfig } from './resolve-initial.js';
@@ -22,6 +22,12 @@ export function createSharedStore<T>(
 ): SharedStoreHandle<T> {
   const { name, initial, persist: _persist, onError } = options;
   const resolvedInitial = resolveInitial<T>(name, initial, _persist);
+
+  // Destroy existing instance if calling createSharedStore with same name
+  const existing = getInstance(name);
+  if (existing) {
+    existing.destroy();
+  }
 
   if (isBrowser) {
     const transport = createTransport(name);

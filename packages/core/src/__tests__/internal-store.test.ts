@@ -146,4 +146,81 @@ describe('InternalStore', () => {
     store.destroy();
     expect(store.get()).toEqual({ count: 42 }); // still accessible
   });
+
+  describe('mergeStrategy: field', () => {
+    it('field merge shallow-merges incoming patches', async () => {
+      const { InternalStore } = await import('../internal-store.js');
+      const store = new InternalStore<{ a: number; b: string }>(
+        { a: 1, b: 'hello' },
+        mockTransport,
+        undefined,
+        undefined,
+        'field',
+      );
+      vi.advanceTimersByTime(750);
+
+      // Simulate receiving a patch that only changes 'a'
+      const handler = mockTransport.onMessage.mock.calls[0]?.[0];
+      if (handler) {
+        handler({
+          _meta: { type: 'state-patch', source: 'other', id: '1', timestamp: Date.now(), clock: '5:other-tab' },
+          payload: { state: { $patch: true, a: 99 }, clock: '5:other-tab' },
+        });
+      }
+
+      expect(store.get()).toEqual({ a: 99, b: 'hello' }); // b preserved
+      store.destroy();
+    });
+
+    it('field merge replaces full state for arrays', async () => {
+      const { InternalStore } = await import('../internal-store.js');
+      const store = new InternalStore<{ items: string[] }>(
+        { items: ['a'] },
+        mockTransport,
+        undefined,
+        undefined,
+        'field',
+      );
+      vi.advanceTimersByTime(750);
+
+      const handler = mockTransport.onMessage.mock.calls[0]?.[0];
+      if (handler) {
+        handler({
+          _meta: { type: 'state-patch', source: 'other', id: '1', timestamp: Date.now(), clock: '5:other-tab' },
+          payload: { state: { items: ['b', 'c'] }, clock: '5:other-tab' },
+        });
+      }
+
+      expect(store.get()).toEqual({ items: ['b', 'c'] }); // full replacement
+      store.destroy();
+    });
+
+    it('field merge rejects stale patches', async () => {
+      const { InternalStore } = await import('../internal-store.js');
+      const store = new InternalStore<{ a: number }>(
+        { a: 1 },
+        mockTransport,
+        undefined,
+        undefined,
+        'field',
+      );
+      vi.advanceTimersByTime(750);
+
+      // Set a value to advance our clock
+      store.set({ a: 10 });
+      const ourClock = store.getClock();
+
+      // Send a patch with an older clock — should be rejected
+      const handler = mockTransport.onMessage.mock.calls[0]?.[0];
+      if (handler) {
+        handler({
+          _meta: { type: 'state-patch', source: 'other', id: '1', timestamp: Date.now(), clock: '1:other-tab' },
+          payload: { state: { $patch: true, a: 999 }, clock: '1:other-tab' },
+        });
+      }
+
+      expect(store.get()).toEqual({ a: 10 }); // unchanged
+      store.destroy();
+    });
+  });
 });

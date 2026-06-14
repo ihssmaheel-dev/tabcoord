@@ -20,7 +20,7 @@ const isBrowser =
 export function createSharedStore<T>(
   options: CreateSharedStoreOptions<T>,
 ): SharedStoreHandle<T> {
-  const { name, initial, persist: _persist, onError } = options;
+  const { name, initial, mergeStrategy, persist: _persist, onError } = options;
   const resolvedInitial = resolveInitial<T>(name, initial, _persist);
 
   // Destroy existing instance if calling createSharedStore with same name
@@ -32,7 +32,7 @@ export function createSharedStore<T>(
   if (isBrowser) {
     const transport = createTransport(name);
     const persistPrefix = _persist?.prefix;
-    const store = new InternalStore<T>(resolvedInitial, transport, onError, persistPrefix);
+    const store = new InternalStore<T>(resolvedInitial, transport, onError, persistPrefix, mergeStrategy);
     setInstance(name, store);
   } else {
     const store = new NoopInternalStore<T>(resolvedInitial);

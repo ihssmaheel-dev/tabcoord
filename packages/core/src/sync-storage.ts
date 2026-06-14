@@ -53,12 +53,25 @@ function scheduleTTL(key: string, ttl: number): void {
   ttlTimers.set(key, timer);
 }
 
+let _changeChannel: BroadcastChannel | null = null;
+
+function getChangeChannel(): BroadcastChannel | null {
+  if (typeof BroadcastChannel === 'undefined') return null;
+  if (!_changeChannel) {
+    try {
+      _changeChannel = new BroadcastChannel(CHANGE_CHANNEL);
+    } catch {
+      return null;
+    }
+  }
+  return _changeChannel;
+}
+
 function broadcast(key: string, value: string | null): void {
-  if (typeof BroadcastChannel === 'undefined') return;
+  const bc = getChangeChannel();
+  if (!bc) return;
   try {
-    const bc = new BroadcastChannel(CHANGE_CHANNEL);
     bc.postMessage({ key, value } as StorageChangeEvent);
-    bc.close();
   } catch {
     // BroadcastChannel not available — rely on storage events
   }

@@ -114,6 +114,40 @@ importers:
         specifier: ^6.0.0
         version: 6.4.3(jiti@2.7.0)
 
+  demos/multiplayer-cursor:
+    dependencies:
+      '@tabcoord/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@tabcoord/list':
+        specifier: workspace:*
+        version: link:../../packages/list
+      '@tabcoord/react':
+        specifier: workspace:*
+        version: link:../../packages/react
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.7(react@19.2.7)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.17
+      '@types/react-dom':
+        specifier: ^19.0.0
+        version: 19.2.3(@types/react@19.2.17)
+      '@vitejs/plugin-react':
+        specifier: ^4.0.0
+        version: 4.7.0(vite@6.4.3(jiti@2.7.0))
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vite:
+        specifier: ^6.0.0
+        version: 6.4.3(jiti@2.7.0)
+
   demos/shared-cart:
     dependencies:
       '@tabcoord/react':
@@ -162,6 +196,18 @@ importers:
       size-limit:
         specifier: ^11.0.0
         version: 11.2.0
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(jiti@2.7.0)(jsdom@29.1.1)
+
+  packages/list:
+    devDependencies:
+      '@tabcoord/core':
+        specifier: workspace:*
+        version: link:../core
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
       vitest:
         specifier: ^3.0.0
         version: 3.2.6(jiti@2.7.0)(jsdom@29.1.1)

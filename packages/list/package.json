@@ -1,0 +1,33 @@
+{
+  "name": "@tabcoord/list",
+  "version": "0.0.1",
+  "description": "OR-Set CRDT for cross-tab collaborative arrays",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@tabcoord/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@tabcoord/core": "workspace:*",
+    "vitest": "^3.0.0",
+    "typescript": "^5.8.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

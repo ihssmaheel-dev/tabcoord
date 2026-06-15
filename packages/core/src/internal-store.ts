@@ -69,10 +69,13 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       if (this._status !== 'bootstrap') return;
       const payload = msg.payload as { state: T; clock: string };
       if (payload.state !== undefined) {
-        // During bootstrap, accept any response with state — don't check clocks
-        // Both tabs start with counter=0, so clock comparison would reject valid responses
+        const incomingClock = deserialize(payload.clock);
+        // Accept if incoming clock is higher (more recent state)
+        // or equal (first responder wins tiebreak)
+        const cmp = compare(incomingClock, this.clock);
+        if (cmp < 0) return; // reject stale state
         this.state = payload.state;
-        this.clock = deserialize(payload.clock);
+        this.clock = incomingClock;
       }
       // Replay queued writes on top of received state (with reserved key stripping)
       for (const write of this.writeQueue) {

@@ -1,10 +1,7 @@
 import type { PersistConfig } from './persist.js';
 import { rehydrateState } from './persist.js';
 
-const _factoryCache = new Map<string, WeakRef<object>>();
-const _registry = new FinalizationRegistry<string>((name) => {
-  _factoryCache.delete(name);
-});
+const _factoryCache = new Map<string, unknown>();
 
 export function resolveInitial<T>(
   name: string,
@@ -20,34 +17,20 @@ export function resolveInitial<T>(
       const result = persistConfig.onRehydrate
         ? persistConfig.onRehydrate(stored.state, stored.clock)
         : stored.state;
-      setFactoryCache(name, result);
+      _factoryCache.set(name, result);
       return result;
     }
   }
 
   // 2. HMR cache — module reloaded in dev, factory already ran once
-  const cachedRef = _factoryCache.get(name);
-  if (cachedRef) {
-    const cached = cachedRef.deref();
-    if (cached !== undefined) return cached as T;
-    _factoryCache.delete(name);
+  if (_factoryCache.has(name)) {
+    return _factoryCache.get(name) as T;
   }
 
   // 3. True cold start
   const result = typeof initial === 'function' ? (initial as () => T)() : initial;
-  setFactoryCache(name, result);
+  _factoryCache.set(name, result);
   return result;
-}
-
-function setFactoryCache(name: string, value: unknown): void {
-  if (typeof value === 'object' && value !== null) {
-    _factoryCache.set(name, new WeakRef(value));
-    _registry.register(value, name);
-  } else {
-    // Primitives can't be WeakRef'd; store directly but won't be GC'd
-    // (primitives are small, so this is acceptable)
-    _factoryCache.set(name, new WeakRef({ v: value }));
-  }
 }
 
 export function clearFactoryCache(name?: string): void {

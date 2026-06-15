@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { cursors, getRandomColor, type CursorState } from './store';
 
 function Cursor({ cursor }: { cursor: CursorState }) {
@@ -6,8 +6,8 @@ function Cursor({ cursor }: { cursor: CursorState }) {
     <div
       style={{
         position: 'fixed',
-        left: cursor.x,
-        top: cursor.y,
+        left: cursor.x - 6,
+        top: cursor.y - 6,
         width: 12,
         height: 12,
         borderRadius: '50%',
@@ -15,7 +15,6 @@ function Cursor({ cursor }: { cursor: CursorState }) {
         border: '2px solid white',
         boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
         pointerEvents: 'none',
-        transition: 'left 0.05s, top 0.05s',
         zIndex: 1000,
       }}
       title={`Tab ${cursor.tabId.slice(0, 8)}`}
@@ -27,24 +26,34 @@ export default function App() {
   const [items, setItems] = useState<CursorState[]>([]);
   const [myColor] = useState(getRandomColor);
   const [tabId] = useState(() => Math.random().toString(36).slice(2, 8));
+  const rafRef = useRef<number>(0);
+  const pendingPos = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    // Add this tab's cursor
     cursors.add({ x: window.innerWidth / 2, y: window.innerHeight / 2, color: myColor, tabId });
 
-    // Subscribe to cursor changes
     const unsub = cursors.subscribe((newItems) => {
       setItems(newItems);
     });
 
-    // Initial render
     setItems(cursors.toArray());
 
     const handleMouseMove = (e: MouseEvent) => {
-      cursors.update(
-        (item) => item.tabId === tabId,
-        () => ({ x: e.clientX, y: e.clientY, color: myColor, tabId }),
-      );
+      pendingPos.current = { x: e.clientX, y: e.clientY };
+
+      // Throttle: only update store at ~30fps via rAF
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          if (pendingPos.current) {
+            cursors.update(
+              (item) => item.tabId === tabId,
+              () => ({ ...pendingPos.current!, color: myColor, tabId }),
+            );
+            pendingPos.current = null;
+          }
+          rafRef.current = 0;
+        });
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -53,6 +62,7 @@ export default function App() {
       window.removeEventListener('mousemove', handleMouseMove);
       cursors.remove((item) => item.tabId === tabId);
       unsub();
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [myColor, tabId]);
 

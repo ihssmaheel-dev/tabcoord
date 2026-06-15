@@ -48,5 +48,5 @@ export function stopPolling(): void {
     clearInterval(pollTimer);
     pollTimer = null;
   }
-  election.destroy();
+  // Don't destroy election here — it's module-scope and should persist
 }

@@ -60,6 +60,7 @@ export function leaderElection(
   function becomeLeader(): void {
     if (_isLeader || destroyed) return;
     _isLeader = true;
+    console.log(`[leader:${name}] Tab ${tabId} became LEADER`);
     for (const cb of electedCallbacks) cb();
   }
 
@@ -67,6 +68,7 @@ export function leaderElection(
   function loseLeadership(): void {
     if (!_isLeader || destroyed) return;
     _isLeader = false;
+    console.log(`[leader:${name}] Tab ${tabId} LOST leadership`);
     for (const cb of demotedCallbacks) cb();
   }
 
@@ -79,6 +81,8 @@ export function leaderElection(
 
     const alive = [tabId, ...heard.keys()].sort();
     const newLeader = alive[0] === tabId;
+
+    console.log(`[leader:${name}] evaluate: alive=${alive.join(',')} newLeader=${newLeader} isLeader=${_isLeader} webLockAcquired=${webLockAcquired}`);
 
     if (newLeader) {
       becomeLeader();
@@ -96,24 +100,29 @@ export function leaderElection(
   });
 
   // Broadcast heartbeat periodically
+  // Always run — heartbeat is needed for liveness detection even with Web Locks
   const heartbeatTimer = setInterval(() => {
     if (destroyed) return;
     bus.emit('heartbeat', { tabId, timestamp: Date.now() } satisfies HeartbeatPayload);
+    // Always evaluate — this detects when leader tab closes (heartbeat stops)
+    if (hasWebLocks() && webLockAcquired) return; // skip if we already have the lock
     evaluate();
   }, heartbeatInterval);
 
   // Web Locks acceleration
   async function tryWebLock(): Promise<void> {
     if (!hasWebLocks() || destroyed) return;
+    console.log(`[leader:${name}] Trying Web Locks...`);
 
     try {
       // Request the lock — blocks until granted
-      const lock = await navigator.locks.request(
+      await navigator.locks.request(
         `leader:${name}`,
         { mode: 'exclusive' },
         () => new Promise<void>((resolve) => {
           // Lock held — we are leader
           webLockAcquired = true;
+          console.log(`[leader:${name}] Web Lock acquired!`);
           if (!destroyed) becomeLeader();
 
           // Wait until released or destroyed
@@ -141,16 +150,20 @@ export function leaderElection(
           if (!destroyed) tryWebLock();
         }, 100);
       }
-    } catch {
+    } catch (err) {
       // Lock acquisition failed — fall back to heartbeat
+      console.log(`[leader:${name}] Web Lock failed:`, err);
       webLockAcquired = false;
       // evaluate() will handle it on next heartbeat
     }
   }
 
   // Handle pagehide/visibilitychange for immediate step-down
+  // Only step down on visibilitychange when using heartbeat (no Web Locks)
+  // With Web Locks, the lock is still held when tab is hidden
   function handleVisibilityChange(): void {
     if (destroyed) return;
+    if (hasWebLocks() && webLockAcquired) return; // Web Locks handles this
     if (document.visibilityState === 'hidden' && _isLeader) {
       loseLeadership();
       heard.delete(tabId);
@@ -159,6 +172,12 @@ export function leaderElection(
 
   function handlePageHide(): void {
     if (destroyed) return;
+    // On pagehide, release Web Lock if held
+    if (hasWebLocks() && webLockAcquired) {
+      webLockAcquired = false;
+      loseLeadership();
+    }
+    // For heartbeat: step down
     if (_isLeader) {
       loseLeadership();
     }

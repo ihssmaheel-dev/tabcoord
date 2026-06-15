@@ -1,6 +1,6 @@
 {
-  "name": "@tabcoord/core",
-  "version": "0.0.1",
+  "name": "tabcoord",
+  "version": "0.1.1",
   "description": "Multi-tab coordination layer — shared state, leader election, distributed locks, event bus",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

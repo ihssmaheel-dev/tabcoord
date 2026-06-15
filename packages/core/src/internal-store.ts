@@ -5,6 +5,7 @@ import type { Clock } from './clock.js';
 import { tick, compare, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
 import { persistState } from './persist.js';
+import { diff, apply, isPatch, type Patch } from './diff.js';
 
 type Setter<T> = (prev: T) => T;
 
@@ -101,10 +102,23 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     // Handle incoming state-patch from other tabs (live sync)
     this.bus.on('state-patch', (msg: WireMessage) => {
       if (this._status !== 'synced') return;
-      const payload = msg.payload as { state: T; clock: string };
+      const payload = msg.payload as { state: T | Patch; clock: string };
       if (payload.state === undefined) return;
-      this.state = payload.state as T;
-      this.clock = deserialize(payload.clock);
+      const incomingClock = deserialize(payload.clock);
+      const cmp = compare(incomingClock, this.clock);
+      if (cmp < 0) return; // reject stale state only (accept equal or higher)
+
+      // Apply patch (diff) or full state replacement
+      if (isPatch(payload.state)) {
+        this.state = apply(
+          this.state as unknown as Record<string, unknown>,
+          payload.state as Patch,
+        ) as T;
+      } else {
+        this.state = payload.state as T;
+      }
+
+      this.clock = incomingClock;
       if (this.storeName && this.persistPrefix) {
         persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
       }
@@ -178,6 +192,8 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     if (this.storeName && this.persistPrefix) {
       persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
     }
+    // Send full state for now — diff/patch integration causes bidirectional sync issues
+    // The diff/apply module is available for future optimization
     this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
     this.notify();
   }

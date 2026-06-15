@@ -90,6 +90,8 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       this.writeQueue = [];
       this._status = 'synced';
       this.bus.emit('sync-ack', { tabId: getTabId() }, this.clock);
+      // Broadcast final state after replaying queued writes
+      this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
       this.notify();
     });
 
@@ -133,6 +135,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
               : write as T;
           }
         }
+        this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
         this.notify();
       }, BOOTSTRAP_TIMEOUT);
     }, jitter());

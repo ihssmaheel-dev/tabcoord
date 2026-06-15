@@ -13,8 +13,8 @@ export class SharedStoreHandle<T = unknown> {
     const inst = getInstance(this.name) as InternalStoreInterface<T> | undefined;
     if (inst) return inst.get();
     if (this._fallback !== undefined) return this._fallback;
-    // Should not happen in normal usage — return initial value from cache
-    throw new Error(`[@tabcoord/core] Store "${this.name}" not initialized. Call createSharedStore() first.`);
+    console.warn(`[@tabcoord/core] Store "${this.name}" not initialized yet`);
+    return undefined as T;
   }
 
   set(value: T | ((prev: T) => T)): void {

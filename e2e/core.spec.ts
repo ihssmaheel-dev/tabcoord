@@ -54,10 +54,9 @@ test.describe('multi-tab state sync', () => {
     await tabA.click('#setStrBtn');
     await expect(tabB.locator('#storeValue')).toHaveText('{"count":0,"str":"hello"}');
 
-    // Wait for sync to settle
-    await tabA.waitForTimeout(500);
-
-    // Tab B increments
+    // Tab B increments — wait for sync to settle via storeStatus check
+    await expect(tabA.locator('#storeStatus')).toHaveText('synced');
+    await expect(tabB.locator('#storeStatus')).toHaveText('synced');
     await tabB.click('#incrementBtn');
     await expect(tabA.locator('#storeValue')).toHaveText('{"count":1,"str":"hello"}');
   });

@@ -5,7 +5,7 @@ import type { Clock } from './clock.js';
 import { tick, compare, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
 import { persistState } from './persist.js';
-import { diff, apply, isPatch, type Patch } from './diff.js';
+import { apply, isPatch, type Patch } from './diff.js';
 
 type Setter<T> = (prev: T) => T;
 

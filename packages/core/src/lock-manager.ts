@@ -138,8 +138,22 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
     const payload = msg.payload as LockReleasePayload;
     if (payload.lockName !== name) return;
 
-    // A tab released — check if we're next in queue
-    // (handled by the grant logic above)
+    // A tab released — clear its holder entry and grant to next in queue
+    // Find and remove the releasing tab from holders
+    for (const [holderTabId] of holders) {
+      if (holderTabId !== tabId) {
+        holders.delete(holderTabId);
+        break;
+      }
+    }
+
+    // Grant to next in queue if lock is now free
+    if (!isLocked() && pendingRequests.length > 0) {
+      const next = pendingRequests.shift()!;
+      holders.set(next.tabId, 1);
+      grantLock(next.tabId);
+      startTTL();
+    }
   });
 
   return {

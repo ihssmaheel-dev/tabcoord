@@ -22,7 +22,9 @@ export function createStorageEventTransport(name: string): Transport {
     }
   }
 
-  window.addEventListener('storage', handleStorage);
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', handleStorage);
+  }
 
   return {
     onMessage(handler: MessageHandler): () => void {
@@ -40,7 +42,9 @@ export function createStorageEventTransport(name: string): Transport {
       }
     },
     destroy(): void {
-      window.removeEventListener('storage', handleStorage);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', handleStorage);
+      }
       handlers.clear();
       try {
         localStorage.removeItem(key);

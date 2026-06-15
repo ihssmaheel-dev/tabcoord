@@ -1,68 +1,101 @@
 # @tabcoord
 
-**The coordination layer multi-tab apps are missing.**
-
-Shared state, event bus, leader election, and distributed locks across browser tabs — zero dependencies, under 4KB gzipped.
+**Sync state across browser tabs. One line of code.**
 
 ```typescript
 import { createSharedStore } from '@tabcoord/core';
-import { useSharedStore } from '@tabcoord/react';
 
-export const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
-
-// In any component — state syncs across all tabs automatically
-const items = useSharedStore(cart, s => s.items);
+const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
+// Now any tab can read/write cart, and they all stay in sync.
 ```
 
-## Install
+## What is this?
 
-```bash
-npm i @tabcoord/core @tabcoord/react
-# or
-pnpm add @tabcoord/core @tabcoord/react
-```
+TabCoord lets you share state between browser tabs. Open your app in two tabs — change something in one tab, and it appears in the other instantly. No server needed. No WebSocket. Just browser tabs talking to each other.
 
 ## Quick Start
 
-```typescript
-// store.ts — module scope, works in SSR
-import { createSharedStore } from '@tabcoord/core';
-
-export const counter = createSharedStore({
-  name: 'counter',
-  initial: { count: 0 },
-});
-
-// Any tab: counter.set({ count: 1 }) → all tabs update
+```bash
+npm install @tabcoord/core @tabcoord/react
 ```
 
-```tsx
-// Counter.tsx
-import { useSharedStore } from '@tabcoord/react';
-import { counter } from './store';
+**Step 1: Create a shared store**
 
-export function Counter() {
-  const { count } = useSharedStore(counter, s => s);
+```typescript
+// store.ts
+import { createSharedStore } from '@tabcoord/core';
+
+export const cart = createSharedStore({
+  name: 'cart',
+  initial: { items: [] },
+});
+```
+
+**Step 2: Use it in your app**
+
+```tsx
+// Cart.tsx
+import { useSharedStore } from '@tabcoord/react';
+import { cart } from './store';
+
+export function Cart() {
+  const items = useSharedStore(cart, s => s.items);
+
   return (
-    <button onClick={() => counter.set(s => ({ count: s.count + 1 }))}>
-      {count}
+    <button onClick={() => cart.set(s => ({
+      items: [...s.items, 'Widget']
+    }))}>
+      Add Widget ({items.length})
     </button>
   );
 }
 ```
 
+**Step 3: Open two tabs.** Add an item in Tab A. It appears in Tab B automatically.
+
+## Features
+
+| Feature | What it does |
+|---------|-------------|
+| **Shared State** | Read/write state across tabs — changes sync instantly |
+| **Leader Election** | One tab becomes the "leader" — useful for background tasks |
+| **Lock Manager** | Prevent two tabs from doing the same thing at once |
+| **Event Bus** | Send events between tabs with wildcard matching |
+| **Persistence** | State survives page reload (localStorage) |
+| **SSR Support** | Works in Next.js, Remix, etc. |
+
+## Why use this?
+
+**Without TabCoord:**
+```typescript
+// You need a server, WebSocket, or complex localStorage logic
+// to keep two tabs in sync. Good luck.
+```
+
+**With TabCoord:**
+```typescript
+const store = createSharedStore({ name: 'counter', initial: { count: 0 } });
+// Two tabs. Instant sync. No server. Done.
+```
+
+## How it works
+
+1. **Same origin only** — tabs must be on the same website (e.g., `localhost:3000`)
+2. **BroadcastChannel** — uses the browser's built-in tab messaging (with fallback to localStorage)
+3. **Logical clock** — each write gets a timestamp so tabs agree on which version is newest
+4. **Bootstrap handshake** — when a new tab opens, it asks existing tabs for the current state
+
 ## API
 
 ### `createSharedStore(options)`
 
-Creates a cross-tab synchronized store. Returns a `SharedStoreHandle`.
+Creates a store that syncs across tabs.
 
 ```typescript
 const store = createSharedStore({
-  name: 'my-store',           // unique name (required)
-  initial: { count: 0 },     // T | (() => T)
-  persist: { version: 1 },   // optional persistence config
-  onError: (err) => {},       // optional error handler
+  name: 'my-store',          // unique name
+  initial: { count: 0 },     // starting value
+  persist: { version: 1 },   // optional: save to localStorage
 });
 ```
 
@@ -70,93 +103,95 @@ const store = createSharedStore({
 
 | Method | Description |
 |--------|-------------|
-| `get()` | Returns current state |
-| `set(value \| fn)` | Updates state (syncs to all tabs) |
-| `subscribe(fn)` | Subscribe to state changes, returns unsubscribe |
-| `destroy()` | Cleanup (closes channel, clears caches) |
-| `status` | `'bootstrap'` or `'synced'` |
+| `store.get()` | Get current state |
+| `store.set(value)` | Update state (syncs to all tabs) |
+| `store.set(fn)` | Update with a function: `s => ({ ...s, count: s.count + 1 })` |
+| `store.subscribe(fn)` | Listen for changes |
+| `store.destroy()` | Clean up when done |
 
 ### `useSharedStore(store, selector)`
 
-React hook for cross-tab state. Uses `useSyncExternalStore` for concurrent mode safety.
+React hook for reading state:
 
-```typescript
+```tsx
 const count = useSharedStore(store, s => s.count);
 ```
 
-### `useSharedEvent(bus, event, handler)`
-
-React hook for cross-tab events.
-
 ### `eventBus(name)`
 
-Cross-tab event bus with wildcard matching and replay.
+Send events between tabs:
 
 ```typescript
-const bus = eventBus('app-events');
-bus.on('user:*', (event) => console.log(event));
+const bus = eventBus('my-events');
 bus.emit('user:login', { userId: 123 });
-bus.destroy();
+bus.on('user:*', (event) => console.log(event));
 ```
 
-### `createStoreContext(options)`
+### `leaderElection(name)`
 
-Creates a React Context bound to a store. Returns `{ Provider, useStore, store }`.
-
-## SSR
-
-TabSync works in SSR environments (Next.js, Remix, etc.). On the server, `createSharedStore` returns a no-op store that returns the initial value. On the client, it transparently swaps to a real synchronized store.
+Elect a leader tab (one tab is "the boss"):
 
 ```typescript
-// This works in module scope — no hydration mismatch
-export const cart = createSharedStore({
-  name: 'cart',
-  initial: { items: [] },
+const election = leaderElection('my-leader');
+election.onElected(() => {
+  console.log('This tab is the leader!');
+  // Start background work here
 });
 ```
 
-The `SharedStoreHandle` identity never changes, so module-scope exports stay valid across SSR → hydration.
+### `lockManager(name)`
 
-See [docs/ssr.md](docs/ssr.md) for details.
-
-## Persistence
+Lock to prevent two tabs from doing the same thing:
 
 ```typescript
-const cart = createSharedStore({
-  name: 'cart',
-  initial: { items: [] },
-  persist: {
-    version: 1,                    // bump to invalidate old data
-    prefix: 'myapp',               // optional, default 'tabcoord'
-    onRehydrate: (state, clock) => state,  // optional transform
-  },
+const lock = lockManager('my-lock');
+await lock.acquire(async () => {
+  // Only one tab runs this at a time
+  await doExpensiveWork();
 });
 ```
-
-State is persisted to `localStorage` on every `set()`. On page reload, the stored state is used as the initial value. Corrupted JSON is silently cleared and falls back to the `initial` value.
-
-## Destroy
-
-Call `destroy()` when the store is no longer needed (e.g., SPA route change):
-
-```typescript
-cart.destroy();
-// set() and get() become no-ops with a dev warning
-// Re-creating with the same name starts fresh
-```
-
-## Reserved Keys
-
-The keys `_meta` and `$tabcoord` are reserved by the framework. If your state contains these keys, they are silently stripped before storage.
 
 ## Browser Support
 
-- Chrome 54+
-- Firefox 38+
-- Safari 16+ (private browsing falls back to in-memory)
+| Browser | Support |
+|---------|---------|
+| Chrome 54+ | ✅ Full |
+| Firefox 38+ | ✅ Full |
+| Safari 16+ | ✅ Full |
+| Edge 79+ | ✅ Full |
+| Node.js | ⚠️ SSR only (no cross-tab sync) |
 
-Falls back through: `BroadcastChannel` → `localStorage` + `storage` event → in-memory noop.
+## Bundle Size
+
+- **@tabcoord/core**: 4.78 KB gzipped, zero dependencies
+- **@tabcoord/react**: 0.9 KB gzipped
+
+## Demos
+
+Run any demo to see it in action:
+
+```bash
+pnpm --filter @tabcoord/demo-shared-cart dev    # Shopping cart
+pnpm --filter @tabcoord/demo-auth-sync dev      # Auth sync
+pnpm --filter @tabcoord/demo-background-sync dev # Leader election
+pnpm --filter @tabcoord/demo-distributed-form dev # Field merge
+```
+
+## When NOT to use this
+
+- **Single tab only** — no benefit
+- **Multiple users** — this is for one person's tabs, not collaboration
+- **Cross-device** — same browser only
+- **Large state (>5MB)** — localStorage has limits
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## Code of Conduct
+
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)

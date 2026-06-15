@@ -1,7 +1,7 @@
 {
   "name": "tabcoord-react",
   "version": "0.1.1",
-  "description": "React bindings for @tabcoord/core",
+  "description": "React bindings for tabcoord",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -15,6 +15,16 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihssmaheel-dev/tabcoord.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/ihssmaheel-dev/tabcoord#readme",
+  "bugs": {
+    "url": "https://github.com/ihssmaheel-dev/tabcoord/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
@@ -23,11 +33,11 @@
     "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "@tabcoord/core": "workspace:*",
+    "tabcoord": "workspace:*",
     "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
-    "@tabcoord/core": "workspace:*",
+    "tabcoord": "workspace:*",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^19.0.0",
     "jsdom": "^29.1.1",

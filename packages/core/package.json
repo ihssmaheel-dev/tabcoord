@@ -15,6 +15,16 @@
   "files": [
     "dist"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihssmaheel-dev/tabcoord.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/ihssmaheel-dev/tabcoord#readme",
+  "bugs": {
+    "url": "https://github.com/ihssmaheel-dev/tabcoord/issues"
+  },
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

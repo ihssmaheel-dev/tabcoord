@@ -1,5 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useSharedStore } from '@tabcoord/react';
+import { useEffect, useState, useMemo } from 'react';
 import { cursors, getRandomColor, type CursorState } from './store';
 
 function Cursor({ cursor }: { cursor: CursorState }) {
@@ -25,13 +24,21 @@ function Cursor({ cursor }: { cursor: CursorState }) {
 }
 
 export default function App() {
-  const items = useSharedStore({ get: () => cursors.toArray(), subscribe: (fn) => cursors.subscribe(fn), destroy: () => {} } as any, (s) => s);
+  const [items, setItems] = useState<CursorState[]>([]);
   const [myColor] = useState(getRandomColor);
   const [tabId] = useState(() => Math.random().toString(36).slice(2, 8));
 
   useEffect(() => {
     // Add this tab's cursor
     cursors.add({ x: window.innerWidth / 2, y: window.innerHeight / 2, color: myColor, tabId });
+
+    // Subscribe to cursor changes
+    const unsub = cursors.subscribe((newItems) => {
+      setItems(newItems);
+    });
+
+    // Initial render
+    setItems(cursors.toArray());
 
     const handleMouseMove = (e: MouseEvent) => {
       cursors.update(
@@ -45,6 +52,7 @@ export default function App() {
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       cursors.remove((item) => item.tabId === tabId);
+      unsub();
     };
   }, [myColor, tabId]);
 

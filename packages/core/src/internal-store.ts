@@ -27,14 +27,17 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private outerTimer: ReturnType<typeof setTimeout> | null = null;
   private bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
   private persistPrefix: string | null = null;
+  private storeName: string | null = null;
 
   constructor(
     initial: T,
     transport: Transport,
     private onError?: (err: Error) => void,
+    storeName?: string,
     persistPrefix?: string,
   ) {
     this.state = initial;
+    this.storeName = storeName ?? null;
     this.persistPrefix = persistPrefix ?? null;
     this.bus = new MessageBus(transport);
 
@@ -97,8 +100,8 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       if (payload.state === undefined) return;
       this.state = payload.state as T;
       this.clock = deserialize(payload.clock);
-      if (this.persistPrefix) {
-        persistState(this.persistPrefix, this.state, serialize(this.clock));
+      if (this.storeName && this.persistPrefix) {
+        persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
       }
       this.notify();
     });
@@ -166,8 +169,8 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     this.clock = tick();
     this.state = next;
-    if (this.persistPrefix) {
-      persistState(this.persistPrefix, this.state, serialize(this.clock));
+    if (this.storeName && this.persistPrefix) {
+      persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
     }
     this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
     this.notify();

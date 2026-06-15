@@ -151,10 +151,13 @@ export function leaderElection(
         }, 100);
       }
     } catch (err) {
-      // Lock acquisition failed — fall back to heartbeat
-      console.log(`[leader:${name}] Web Lock failed:`, err);
+      // Lock acquisition failed — fall back to heartbeat temporarily
+      console.log(`[leader:${name}] Web Lock failed, falling back to heartbeat:`, err);
       webLockAcquired = false;
-      // evaluate() will handle it on next heartbeat
+      // Retry Web Locks after a delay (transient errors may resolve)
+      setTimeout(() => {
+        if (!destroyed && !webLockAcquired) tryWebLock();
+      }, heartbeatInterval);
     }
   }
 

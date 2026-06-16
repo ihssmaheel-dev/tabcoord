@@ -10,7 +10,7 @@ export default defineConfig({
     baseURL: 'http://localhost:5173',
   },
   webServer: {
-    command: 'pnpm --filter @tabcoord/e2e-test-app dev --port 5173',
+    command: 'pnpm --filter e2e-test-app dev --port 5173',
     url: 'http://localhost:5173',
     reuseExistingServer: !process.env.CI,
     timeout: 10000,

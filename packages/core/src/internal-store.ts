@@ -186,7 +186,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
   set(value: T | Setter<T>): void {
     if (this.destroyed) {
-      console.warn(`[@tabcoord/core] set() called on destroyed store`);
+      console.warn(`[tabcoord] set() called on destroyed store`);
       return;
     }
 

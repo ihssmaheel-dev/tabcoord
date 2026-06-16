@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSharedStore } from '../use-shared-store.js';
-import type { SharedStoreHandle } from '@tabcoord/core';
+import type { SharedStoreHandle } from 'tabcoord';
 
 function createMockHandle<T>(initial: T): SharedStoreHandle<T> & {
   _state: T;

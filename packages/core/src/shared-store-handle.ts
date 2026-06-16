@@ -13,7 +13,7 @@ export class SharedStoreHandle<T = unknown> {
     const inst = getInstance(this.name) as InternalStoreInterface<T> | undefined;
     if (inst) return inst.get();
     if (this._fallback !== undefined) return this._fallback;
-    console.warn(`[@tabcoord/core] Store "${this.name}" not initialized yet`);
+    console.warn(`[tabcoord] Store "${this.name}" not initialized yet`);
     return undefined as T;
   }
 

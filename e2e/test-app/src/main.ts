@@ -1,4 +1,4 @@
-import { createSharedStore, eventBus, getTabId, leaderElection, lockManager } from '@tabcoord/core';
+import { createSharedStore, eventBus, getTabId, leaderElection, lockManager } from 'tabcoord';
 
 // Expose test API on window
 const store = createSharedStore<{ count: number; str: string }>({

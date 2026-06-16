@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useSharedEvent } from '../use-shared-event.js';
-import type { EventBus, BusEvent } from '@tabcoord/core';
+import type { EventBus, BusEvent } from 'tabcoord';
 
 function createMockBus(): EventBus & { _emit: (type: string, payload?: unknown) => void } {
   const handlers: Array<{ pattern: string; handler: (event: BusEvent) => void }> = [];

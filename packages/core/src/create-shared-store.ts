@@ -15,7 +15,9 @@ export interface CreateSharedStoreOptions<T = unknown> {
 }
 
 const isBrowser =
-  typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined';
+  typeof window !== 'undefined';
+
+const _handleCache = new Map<string, SharedStoreHandle<unknown>>();
 
 export function createSharedStore<T>(
   options: CreateSharedStoreOptions<T>,
@@ -38,5 +40,11 @@ export function createSharedStore<T>(
     setInstance(name, store);
   }
 
-  return new SharedStoreHandle<T>(name, resolvedInitial);
+  // Return stable handle reference per name — critical for SSR hydration
+  let handle = _handleCache.get(name) as SharedStoreHandle<T> | undefined;
+  if (!handle) {
+    handle = new SharedStoreHandle<T>(name, resolvedInitial);
+    _handleCache.set(name, handle as SharedStoreHandle<unknown>);
+  }
+  return handle;
 }

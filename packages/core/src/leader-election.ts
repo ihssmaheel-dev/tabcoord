@@ -43,6 +43,7 @@ export function leaderElection(
   let webLockAcquired = false;
   let webLockRelease: (() => void) | null = null;
   let lastLeadershipChange = 0;
+  let _stepDownPending = false;
 
   const heard = new Map<string, number>(); // tabId -> last heartbeat timestamp
   const electedCallbacks: Array<() => void> = [];
@@ -62,6 +63,7 @@ export function leaderElection(
   function becomeLeader(): void {
     if (_isLeader || destroyed) return;
     _isLeader = true;
+    _stepDownPending = false;
     lastLeadershipChange = Date.now();
     console.log(`[leader:${name}] Tab ${tabId} became LEADER`);
     for (const cb of electedCallbacks) cb();
@@ -186,7 +188,8 @@ export function leaderElection(
   function handleVisibilityChange(): void {
     if (destroyed) return;
     if (hasWebLocks() && webLockAcquired) return; // Web Locks handles this
-    if (document.visibilityState === 'hidden' && _isLeader) {
+    if (document.visibilityState === 'hidden' && _isLeader && !_stepDownPending) {
+      _stepDownPending = true;
       loseLeadership(); // immediate, no cooldown
       heard.delete(tabId);
     }
@@ -194,6 +197,7 @@ export function leaderElection(
 
   function handlePageHide(): void {
     if (destroyed) return;
+    if (_stepDownPending) return; // already handled by visibilitychange
     // On pagehide, release Web Lock if held
     if (hasWebLocks() && webLockAcquired) {
       webLockAcquired = false;

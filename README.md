@@ -1,115 +1,104 @@
 # tabcoord
 
-**Sync state across browser tabs. One line of code.**
+**Cross-tab state sync, leader election, distributed locks, and event bus — zero dependencies.**
 
 [![npm version](https://img.shields.io/npm/v/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
+[![npm downloads](https://img.shields.io/npm/dm/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
 [![license](https://img.shields.io/npm/l/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
 
 ```typescript
 import { createSharedStore } from 'tabcoord';
 
 const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
-// Now any tab can read/write cart, and they all stay in sync.
+
+// Tab A
+cart.set({ items: ['Widget'] });
+
+// Tab B — automatically shows { items: ['Widget'] }
 ```
 
----
+## What It Does
 
-## Why TabCoord?
-
-When you open the same app in two browser tabs, they don't know about each other. TabCoord fixes that. Change something in one tab, and it appears in the other instantly — no server, no WebSocket, no complex setup.
-
-**What you get:**
-- Shared state that syncs across tabs in real-time
-- Leader election (one tab becomes "the boss" for background tasks)
-- Lock manager (prevent two tabs from doing the same thing)
-- Event bus (send messages between tabs)
-- Automatic persistence (state survives page reload)
-- Works with React, SSR, and any JavaScript framework
-
-**What you don't need:**
-- A backend server
-- WebSocket connections
-- Complex localStorage logic
-- Third-party state management libraries
-
----
-
-## Quick Start
-
-### 1. Install
-
-```bash
-npm install tabcoord tabcoord-react
-```
-
-### 2. Create a shared store
-
-```typescript
-// store.ts
-import { createSharedStore } from 'tabcoord';
-
-export const cart = createSharedStore({
-  name: 'cart',
-  initial: { items: [] },
-});
-```
-
-### 3. Use it in your app
-
-```tsx
-// Cart.tsx
-import { useSharedStore } from 'tabcoord-react';
-import { cart } from './store';
-
-export function Cart() {
-  const items = useSharedStore(cart, s => s.items);
-
-  return (
-    <button onClick={() => cart.set(s => ({
-      items: [...s.items, 'Widget']
-    }))}>
-      Add Widget ({items.length})
-    </button>
-  );
-}
-```
-
-### 4. Open two tabs
-
-Add an item in Tab A. It appears in Tab B automatically. That's it.
-
----
+Open your app in two browser tabs. Change something in one tab — it appears in the other instantly. No server. No WebSocket. Just browser tabs talking to each other through `BroadcastChannel` (with `localStorage` fallback).
 
 ## Features
 
-### Shared State
+| Feature | Description |
+|---------|-------------|
+| **Shared State** | Read/write state across tabs with instant sync |
+| **Leader Election** | One tab becomes "the leader" for background tasks |
+| **Lock Manager** | Prevent two tabs from doing the same thing at once |
+| **Event Bus** | Send events between tabs with wildcard pattern matching |
+| **Persistence** | State survives page reload via localStorage |
+| **SSR Support** | Works in Next.js, Remix, Nuxt — noop stores on server |
 
-The core feature. Create a store, and all tabs share the same state.
+## Install
+
+```bash
+npm install tabcoord
+```
+
+## Quick Start
 
 ```typescript
+import { createSharedStore } from 'tabcoord';
+
 const store = createSharedStore({
   name: 'counter',
   initial: { count: 0 },
 });
 
-// Tab A
+// Read
+store.get(); // { count: 0 }
+
+// Write (syncs to all tabs)
 store.set({ count: 1 });
 
-// Tab B — automatically shows count: 1
-const count = useSharedStore(store, s => s.count);
+// Update with a function
+store.set(s => ({ count: s.count + 1 }));
+
+// Subscribe to changes
+const unsubscribe = store.subscribe((state) => {
+  console.log(state);
+});
+
+// Clean up
+store.destroy();
 ```
 
-### Leader Election
+## React Integration
 
-One tab becomes the "leader" — useful for background tasks like polling or syncing.
+```bash
+npm install tabcoord-react
+```
+
+```tsx
+import { createSharedStore } from 'tabcoord';
+import { useSharedStore } from 'tabcoord-react';
+
+const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
+
+function Cart() {
+  const items = useSharedStore(cart, s => s.items);
+  return (
+    <button onClick={() => cart.set(s => ({ items: [...s.items, 'Widget'] }))}>
+      Add ({items.length})
+    </button>
+  );
+}
+```
+
+See [packages/react/README.md](packages/react/README.md) for full React API docs.
+
+## Leader Election
 
 ```typescript
 import { leaderElection } from 'tabcoord';
 
-const election = leaderElection('my-leader');
+const election = leaderElection('my-app');
 
 election.onElected(() => {
-  console.log('This tab is the leader!');
+  console.log('This tab is the leader');
   startBackgroundSync();
 });
 
@@ -119,190 +108,116 @@ election.onDemoted(() => {
 });
 ```
 
-### Lock Manager
+Uses Web Locks API when available, falls back to heartbeat-based election.
 
-Prevent two tabs from doing the same thing at the same time.
+## Lock Manager
 
 ```typescript
 import { lockManager } from 'tabcoord';
 
-const lock = lockManager('my-lock');
+const lock = lockManager('data-write');
 
+// Only one tab runs this at a time
 await lock.acquire(async () => {
-  // Only one tab runs this at a time
-  await doExpensiveWork();
+  await writeCriticalData();
+});
+
+// Non-blocking check
+const acquired = await lock.tryAcquire(async () => {
+  await doWork();
 });
 ```
 
-### Event Bus
-
-Send events between tabs with wildcard matching.
+## Event Bus
 
 ```typescript
 import { eventBus } from 'tabcoord';
 
-const bus = eventBus('my-events');
+const bus = eventBus('user-events');
 
-// Tab A
+// Emit
 bus.emit('user:login', { userId: 123 });
 
-// Tab B
+// Listen with wildcard
 bus.on('user:*', (event) => {
-  console.log(event.type); // 'user:login'
+  console.log(event.type, event.payload);
+});
+
+// Listen to all events
+bus.on('*', (event) => {
+  console.log('Any event:', event.type);
 });
 ```
 
-### Persistence
+Local subscribers receive their own emitted events. Cross-tab delivery is automatic.
 
-State survives page reload. Configure it like this:
+## Persistence
 
 ```typescript
 const store = createSharedStore({
   name: 'cart',
   initial: { items: [] },
-  persist: { version: 1 },
+  persist: {
+    version: 1,
+    prefix: 'myapp',       // optional, default: 'tabcoord'
+    onRehydrate: (state, clock) => state,  // optional migration hook
+  },
 });
 ```
 
----
+## Error Handling
+
+```typescript
+import { createSharedStore } from 'tabcoord';
+import { StoreDestroyedError, LockTimeoutError } from 'tabcoord';
+
+const store = createSharedStore({ name: 'app', initial: {} });
+store.destroy();
+
+// Typed errors for different failure modes
+try {
+  store.set({ data: 1 });
+} catch (err) {
+  if (err instanceof StoreDestroyedError) {
+    // Store was destroyed
+  }
+}
+```
+
+Available error classes: `TabcoordError`, `StoreDestroyedError`, `LockTimeoutError`, `LockManagerDestroyedError`, `BootstrapTimeoutError`.
 
 ## How It Works
 
 1. **Same origin only** — tabs must be on the same website
-2. **BroadcastChannel** — uses the browser's built-in tab messaging (with localStorage fallback)
-3. **Logical clock** — each write gets a timestamp so tabs agree on which version is newest
-4. **Bootstrap handshake** — when a new tab opens, it asks existing tabs for the current state
-
-No server needed. No WebSocket. Just browser tabs talking to each other.
-
----
-
-## Comparison with Alternatives
-
-### vs Native BroadcastChannel
-
-The browser's built-in API for tab messaging.
-
-| Feature | tabcoord | Native BroadcastChannel |
-|---------|----------|------------------------|
-| State sync | ✅ Built-in | ❌ Manual |
-| Persistence | ✅ Automatic | ❌ Manual |
-| Leader election | ✅ Built-in | ❌ Manual |
-| Lock manager | ✅ Built-in | ❌ Manual |
-| Fallback | ✅ localStorage | ❌ None |
-| SSR support | ✅ Noop stores | ❌ Browser only |
-| Bundle size | 4.78 KB | 0 KB |
-
-**Use tabcoord when** you need state management, leader election, or locks.  
-**Use native BroadcastChannel when** you just need simple message passing.
-
-### vs `broadcast-channel` (pubkey, 2k stars, 3M+ weekly downloads)
-
-A BroadcastChannel polyfill with leader election.
-
-| Feature | tabcoord | broadcast-channel |
-|---------|----------|-------------------|
-| State sync | ✅ Built-in | ❌ Manual |
-| Persistence | ✅ Automatic | ❌ Manual |
-| Lock manager | ✅ Built-in | ❌ Manual |
-| Event bus | ✅ Built-in | ❌ Manual |
-| SSR support | ✅ Noop stores | ❌ Browser only |
-| Node.js | ❌ SSR only | ✅ Full support |
-| Bundle size | 4.78 KB | 8.2 KB |
-| Dependencies | 0 | 4 |
-
-**Use tabcoord when** you need the full coordination layer.  
-**Use broadcast-channel when** you need a polyfill for old browsers or Node.js IPC.
-
-### vs `channel-state`
-
-A lightweight cross-tab state sync library.
-
-| Feature | tabcoord | channel-state |
-|---------|----------|---------------|
-| State sync | ✅ | ✅ |
-| Leader election | ✅ | ❌ |
-| Lock manager | ✅ | ❌ |
-| Event bus | ✅ | ❌ |
-| Persistence | ✅ | ❌ |
-| SSR support | ✅ | ❌ |
-| Active maintenance | ✅ | ⚠️ Low activity |
-
-**Use tabcoord when** you need more than just state sync.  
-**Use channel-state when** you only need basic cross-tab state.
-
-### vs WebSocket / Server-based solutions
-
-| Feature | tabcoord | WebSocket |
-|---------|----------|-----------|
-| Setup | Zero config | Server required |
-| Latency | <5ms | 50-200ms |
-| Multi-user | ❌ Single user | ✅ Multi-user |
-| Offline | ✅ Works offline | ❌ Needs server |
-| Scalability | Limited to browser tabs | Unlimited |
-
-**Use tabcoord when** it's one person's tabs on one machine.  
-**Use WebSocket when** you need multi-user collaboration.
-
----
+2. **BroadcastChannel** — uses the browser's built-in tab messaging, falls back to localStorage
+3. **Logical clock** — each write gets a counter + tab ID for deterministic conflict resolution
+4. **Bootstrap handshake** — new tabs ask existing tabs for current state on load
+5. **Deterministic leader election** — lowest tab ID wins when multiple tabs race
 
 ## Browser Support
 
-| Browser | Version | Status |
-|---------|---------|--------|
-| Chrome | 54+ | ✅ Full |
-| Firefox | 38+ | ✅ Full |
-| Safari | 16+ | ✅ Full |
-| Edge | 79+ | ✅ Full |
-| Opera | 41+ | ✅ Full |
-| Safari iOS | 15.4+ | ✅ Full |
-| Chrome Android | 54+ | ✅ Full |
-| Samsung Internet | 6.0+ | ✅ Full |
-| IE 11 | — | ❌ Not supported |
-| Node.js | 18+ | ⚠️ SSR only |
-
----
+| Browser | Minimum Version |
+|---------|----------------|
+| Chrome | 54+ |
+| Firefox | 38+ |
+| Safari | 16+ |
+| Edge | 79+ |
+| Node.js | 18+ (SSR only) |
 
 ## Bundle Size
 
 | Package | Gzipped | Dependencies |
 |---------|---------|--------------|
-| tabcoord | 4.78 KB | 0 |
-| tabcoord-react | 0.9 KB | tabcoord, react |
+| `tabcoord` | ~5 KB | 0 |
+| `tabcoord-react` | ~1 KB | `tabcoord`, `react` |
 
----
+## When NOT to Use
 
-## Demos
-
-Run any demo to see it in action:
-
-```bash
-pnpm --filter @tabcoord/demo-shared-cart dev       # Shopping cart
-pnpm --filter @tabcoord/demo-auth-sync dev          # Auth sync
-pnpm --filter @tabcoord/demo-background-sync dev    # Leader election
-pnpm --filter @tabcoord/demo-distributed-form dev   # Field merge
-```
-
----
-
-## When NOT to Use This
-
-- **Single tab only** — no benefit
-- **Multiple users** — this is for one person's tabs, not collaboration
+- **Single tab** — no benefit
+- **Multiple users** — this is for one person's tabs, not real-time collaboration
 - **Cross-device** — same browser only
-- **Large state (>5MB)** — localStorage has limits
-- **Simple message passing** — use native BroadcastChannel instead
-
----
+- **Large state (>5MB)** — localStorage has quota limits
 
 ## License
 
-MIT — see [LICENSE](LICENSE)
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## Code of Conduct
-
-See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+MIT

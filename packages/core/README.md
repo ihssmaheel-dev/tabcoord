@@ -1,20 +1,8 @@
 # tabcoord
 
-**Sync state across browser tabs. One line of code.**
+**Cross-tab state sync, leader election, distributed locks, and event bus — zero dependencies.**
 
 [![npm version](https://img.shields.io/npm/v/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
-[![license](https://img.shields.io/npm/l/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
-
-```typescript
-import { createSharedStore } from 'tabcoord';
-
-const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
-// Two tabs. Instant sync. No server. Done.
-```
-
-## What is this?
-
-TabCoord lets you share state between browser tabs. Open your app in two tabs — change something in one tab, and it appears in the other instantly. No server needed. No WebSocket. Just browser tabs talking to each other.
 
 ## Install
 
@@ -27,130 +15,172 @@ npm install tabcoord
 ```typescript
 import { createSharedStore } from 'tabcoord';
 
-// Create a store
-const cart = createSharedStore({
-  name: 'cart',
-  initial: { items: [] },
+const store = createSharedStore({
+  name: 'counter',
+  initial: { count: 0 },
 });
 
 // Read state
-const state = cart.get();
+store.get(); // { count: 0 }
 
 // Write state (syncs to all tabs)
-cart.set({ items: ['Widget'] });
+store.set({ count: 1 });
 
 // Update with a function
-cart.set(s => ({ items: [...s.items, 'Gadget'] }));
+store.set(s => ({ count: s.count + 1 }));
 
 // Subscribe to changes
-const unsubscribe = cart.subscribe((newState) => {
-  console.log('State changed:', newState);
+const unsubscribe = store.subscribe((state) => {
+  console.log(state);
 });
+
+// Clean up
+store.destroy();
 ```
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **Shared State** | Read/write state across tabs — changes sync instantly |
-| **Leader Election** | One tab becomes the "leader" for background tasks |
-| **Lock Manager** | Prevent two tabs from doing the same thing at once |
-| **Event Bus** | Send events between tabs with wildcard matching |
-| **Persistence** | State survives page reload (localStorage) |
-| **SSR Support** | Works in Next.js, Remix, etc. |
-
-## How It Works
-
-1. **Same origin only** — tabs must be on the same website
-2. **BroadcastChannel** — uses the browser's built-in tab messaging (with localStorage fallback)
-3. **Logical clock** — each write gets a timestamp so tabs agree on which version is newest
-4. **Bootstrap handshake** — when a new tab opens, it asks existing tabs for the current state
-
-No server needed. No WebSocket. Just browser tabs talking to each other.
 
 ## API
 
 ### `createSharedStore(options)`
 
-Creates a store that syncs across tabs.
+Creates a store that syncs across tabs. Returns a `SharedStoreHandle`.
 
 ```typescript
 const store = createSharedStore({
-  name: 'my-store',          // unique name
-  initial: { count: 0 },     // starting value
-  persist: { version: 1 },   // optional: save to localStorage
+  name: 'my-store',          // unique name for this store
+  initial: { count: 0 },     // starting value or () => value
+  persist: {                  // optional: save to localStorage
+    version: 1,
+    prefix: 'myapp',
+    onRehydrate: (state, clock) => state,
+  },
+  onError: (err) => {},       // optional: error callback
 });
 ```
 
 ### `SharedStoreHandle`
 
-| Method | Description |
-|--------|-------------|
-| `store.get()` | Get current state |
-| `store.set(value)` | Update state (syncs to all tabs) |
-| `store.set(fn)` | Update with a function: `s => ({ ...s, count: s.count + 1 })` |
-| `store.subscribe(fn)` | Listen for changes |
-| `store.destroy()` | Clean up when done |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `store.get()` | `T \| undefined` | Get current state |
+| `store.set(value)` | `void` | Set state (syncs to all tabs) |
+| `store.set(fn)` | `void` | Update with function: `s => ({ ...s, n: s.n + 1 })` |
+| `store.subscribe(fn)` | `() => void` | Listen for changes, returns unsubscribe |
+| `store.destroy()` | `void` | Clean up transport and subscriptions |
+| `store.status` | `'bootstrap' \| 'synced'` | Current store status |
 
-### `eventBus(name)`
+### `leaderElection(name, options?)`
 
-Send events between tabs:
-
-```typescript
-import { eventBus } from 'tabcoord';
-
-const bus = eventBus('my-events');
-bus.emit('user:login', { userId: 123 });
-bus.on('user:*', (event) => console.log(event));
-```
-
-### `leaderElection(name)`
-
-Elect a leader tab:
+Elect a leader tab for background tasks.
 
 ```typescript
 import { leaderElection } from 'tabcoord';
 
-const election = leaderElection('my-leader');
-election.onElected(() => {
-  console.log('This tab is the leader!');
-  startBackgroundSync();
+const election = leaderElection('my-app', {
+  heartbeatInterval: 2000,  // default: 2000ms
+  timeout: 5000,             // default: 5000ms
 });
+
+election.onElected(() => { /* this tab is leader */ });
+election.onDemoted(() => { /* lost leadership */ });
+election.isLeader;           // boolean
+election.destroy();          // clean up
 ```
 
-### `lockManager(name)`
+Uses Web Locks API when available, falls back to heartbeat-based election.
 
-Lock to prevent two tabs from doing the same thing:
+### `lockManager(name, options?)`
+
+Distributed lock across tabs.
 
 ```typescript
 import { lockManager } from 'tabcoord';
 
-const lock = lockManager('my-lock');
+const lock = lockManager('data-write', { ttl: 30000 });
+
+// Acquire lock, run function, release
 await lock.acquire(async () => {
-  await doExpensiveWork();
+  await writeCriticalData();
 });
+
+// With timeout
+await lock.acquire(fn, { timeout: 5000 });
+
+// Non-blocking check
+const acquired = await lock.tryAcquire(fn);
+
+lock.destroy();
 ```
 
-## Browser Support
+### `eventBus(name, options?)`
 
-| Browser | Version | Status |
-|---------|---------|--------|
-| Chrome | 54+ | ✅ Full |
-| Firefox | 38+ | ✅ Full |
-| Safari | 16+ | ✅ Full |
-| Edge | 79+ | ✅ Full |
-| Node.js | 18+ | ⚠️ SSR only |
+Cross-tab event system with wildcard matching.
 
-## Bundle Size
+```typescript
+import { eventBus } from 'tabcoord';
 
-- **tabcoord**: 4.78 KB gzipped, zero dependencies
+const bus = eventBus('events', { maxReplay: 20 });
 
-## When NOT to use this
+// Emit (local handlers also receive this)
+bus.emit('user:login', { userId: 123 });
 
-- **Single tab only** — no benefit
-- **Multiple users** — this is for one person's tabs, not collaboration
-- **Cross-device** — same browser only
-- **Large state (>5MB)** — localStorage has limits
+// Listen with wildcard
+bus.on('user:*', (event) => {
+  console.log(event.type, event.payload);
+});
+
+// Replay past events
+bus.on('user:*', handler, { replay: true });
+
+bus.destroy();
+```
+
+### `diff` / `apply` (subpath export)
+
+```typescript
+import { diff, apply } from 'tabcoord/diff';
+
+const patch = diff({ a: 1, b: 2 }, { a: 1, b: 3 });
+// patch = { $patch: true, b: 3 }
+
+const next = apply({ a: 1, b: 2 }, patch);
+// next = { a: 1, b: 3 }
+```
+
+## Error Classes
+
+All errors extend `TabcoordError`:
+
+```typescript
+import {
+  TabcoordError,
+  StoreDestroyedError,
+  LockTimeoutError,
+  LockManagerDestroyedError,
+  BootstrapTimeoutError,
+} from 'tabcoord';
+```
+
+## Exports
+
+The package supports both ESM and CJS:
+
+```typescript
+// ESM
+import { createSharedStore } from 'tabcoord';
+
+// CJS
+const { createSharedStore } = require('tabcoord');
+
+// Subpath
+import { diff, apply } from 'tabcoord/diff';
+```
+
+## How It Works
+
+1. **BroadcastChannel** for fast cross-tab messaging, falls back to localStorage
+2. **Logical clock** (counter + tab ID) for deterministic conflict resolution
+3. **Bootstrap handshake** — new tabs request state from existing tabs
+4. **Deterministic leader election** — lowest tab ID wins ties
 
 ## License
 

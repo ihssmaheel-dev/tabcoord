@@ -3,19 +3,6 @@
 **React hooks for cross-tab state synchronization.**
 
 [![npm version](https://img.shields.io/npm/v/tabcoord-react.svg)](https://www.npmjs.com/package/tabcoord-react)
-[![license](https://img.shields.io/npm/l/tabcoord-react.svg)](https://www.npmjs.com/package/tabcoord-react)
-
-```typescript
-import { createSharedStore } from 'tabcoord';
-import { useSharedStore } from 'tabcoord-react';
-
-const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
-
-function Cart() {
-  const items = useSharedStore(cart, s => s.items);
-  return <button>Add ({items.length})</button>;
-}
-```
 
 ## Install
 
@@ -23,74 +10,88 @@ function Cart() {
 npm install tabcoord-react tabcoord
 ```
 
+Requires React 18 or 19.
+
 ## Quick Start
 
 ```tsx
 import { createSharedStore } from 'tabcoord';
 import { useSharedStore } from 'tabcoord-react';
 
-// 1. Create a shared store
+// Create a shared store (once, outside components)
 const cart = createSharedStore({
   name: 'cart',
   initial: { items: [] },
 });
 
-// 2. Use it in your components
+// Use in any component
 function Cart() {
   const items = useSharedStore(cart, s => s.items);
-  
+
   return (
-    <button onClick={() => cart.set(s => ({
-      items: [...s.items, 'Widget']
-    }))}>
+    <button onClick={() => cart.set(s => ({ items: [...s.items, 'Widget'] }))}>
       Add Widget ({items.length})
     </button>
   );
 }
 ```
 
-Open two tabs. Add an item in Tab A. It appears in Tab B automatically.
+Open two tabs. Add an item in Tab A — it appears in Tab B automatically.
 
 ## API
 
 ### `useSharedStore(store, selector)`
 
-React hook for reading state from a shared store.
+React hook that reads state from a `SharedStoreHandle` and re-renders when the selected value changes.
 
-```typescript
-const count = useSharedStore(store, s => s.count);
-const items = useSharedStore(store, s => s.items);
-const user = useSharedStore(store, s => s.user);
+```tsx
+// Select the whole state
+const state = useSharedStore(cart, s => s);
+
+// Select a specific field
+const count = useSharedStore(cart, s => s.count);
+
+// Select derived data
+const totalPrice = useSharedStore(cart, s => s.items.reduce((sum, i) => sum + i.price, 0));
 ```
 
-- **store**: A `SharedStoreHandle` created by `createSharedStore`
-- **selector**: A function that extracts the value you need
-- Returns the selected value, re-renders when it changes
+**Parameters:**
+- `store` — a `SharedStoreHandle` created by `createSharedStore`
+- `selector` — function that extracts the value you need
+
+**Returns:** The selected value (type-safe). Re-renders only when the selected value changes (shallow comparison).
 
 ### `useSharedEvent(bus, event, handler)`
 
-React hook for listening to cross-tab events.
+React hook that listens to cross-tab events.
 
-```typescript
+```tsx
 import { eventBus } from 'tabcoord';
 import { useSharedEvent } from 'tabcoord-react';
 
-const bus = eventBus('my-events');
+const bus = eventBus('notifications');
 
-function Notifications() {
+function Toast() {
   useSharedEvent(bus, 'user:login', (event) => {
-    console.log('User logged in:', event.payload);
+    showToast(`User ${event.payload.userId} logged in`);
   });
-  
-  return <div>Notifications</div>;
+
+  return <div>Toast container</div>;
 }
 ```
 
+**Parameters:**
+- `bus` — an `EventBus` created by `eventBus()`
+- `event` — event type string (supports `*` wildcard)
+- `handler` — callback function
+
+The handler is always the latest reference — no unnecessary re-subscriptions.
+
 ### `createStoreContext(options)`
 
-Creates a React Context for dependency injection (testing, SSR).
+Creates a React Context for dependency injection (testing, SSR, multi-provider patterns).
 
-```typescript
+```tsx
 import { createStoreContext } from 'tabcoord-react';
 
 const { Provider, useStore } = createStoreContext({
@@ -98,6 +99,7 @@ const { Provider, useStore } = createStoreContext({
   initial: { items: [] },
 });
 
+// Wrap your app with Provider
 function App() {
   return (
     <Provider>
@@ -106,6 +108,7 @@ function App() {
   );
 }
 
+// Use the store in child components
 function Cart() {
   const store = useStore();
   const items = useSharedStore(store, s => s.items);
@@ -113,18 +116,19 @@ function Cart() {
 }
 ```
 
-## Requirements
+**Returns:**
+- `Provider` — wraps children, lazily creates the store on first mount, destroys on unmount
+- `useStore()` — returns the `SharedStoreHandle` (must be used inside `Provider`)
+- `store` — getter that returns the store handle
 
-- React 18 or 19
-- `tabcoord` (peer dependency)
+Using `useStore()` outside a `Provider` throws an error.
 
-## Examples
-
-### Shopping Cart
+## Full Example
 
 ```tsx
 import { createSharedStore } from 'tabcoord';
-import { useSharedStore } from 'tabcoord-react';
+import { useSharedStore, useSharedEvent } from 'tabcoord-react';
+import { eventBus } from 'tabcoord';
 
 const cart = createSharedStore({
   name: 'cart',
@@ -132,55 +136,53 @@ const cart = createSharedStore({
   persist: { version: 1 },
 });
 
+const bus = eventBus('cart-events');
+
 function Cart() {
-  const { items } = useSharedStore(cart, s => s);
-  
+  const items = useSharedStore(cart, s => s.items);
+  const total = useSharedStore(cart, s => s.items.reduce((sum, i) => sum + i.price, 0));
+
+  useSharedEvent(bus, 'item:added', (e) => {
+    console.log('Added:', e.payload);
+  });
+
   return (
     <div>
-      <h2>Cart ({items.length})</h2>
-      {items.map(item => (
-        <div key={item.id}>{item.name} - ${item.price}</div>
-      ))}
-      <button onClick={() => cart.set(s => ({
-        items: [...s.items, { id: Date.now(), name: 'New', price: 9.99 }]
-      }))}>
-        Add Item
+      <h2>Cart ({items.length} items)</h2>
+      <ul>
+        {items.map((item, i) => (
+          <li key={i}>{item.name} — ${item.price}</li>
+        ))}
+      </ul>
+      <p>Total: ${total}</p>
+      <button onClick={() => {
+        cart.set(s => ({ items: [...s.items, { name: 'Widget', price: 9.99 }] }));
+        bus.emit('item:added', { name: 'Widget' });
+      }}>
+        Add Widget
       </button>
     </div>
   );
 }
 ```
 
-### Auth Sync
+## TypeScript
+
+Full type inference — no manual type annotations needed:
 
 ```tsx
-import { createSharedStore } from 'tabcoord';
-import { useSharedStore } from 'tabcoord-react';
+interface CartState {
+  items: Array<{ name: string; price: number }>;
+}
 
-const auth = createSharedStore({
-  name: 'auth',
-  initial: { user: null, isLoggedIn: false },
+const cart = createSharedStore<CartState>({
+  name: 'cart',
+  initial: { items: [] },
 });
 
-function Login() {
-  const { isLoggedIn } = useSharedStore(auth, s => s);
-  
-  if (isLoggedIn) {
-    return <button onClick={() => auth.set({ user: null, isLoggedIn: false })}>
-      Logout
-    </button>;
-  }
-  
-  return <button onClick={() => auth.set({ user: { name: 'Alice' }, isLoggedIn: true })}>
-    Login
-  </button>;
-}
+// Automatically typed
+const items = useSharedStore(cart, s => s.items); // Array<{ name: string; price: number }>
 ```
-
-## Requirements
-
-- React 18 or 19
-- `tabcoord` (peer dependency)
 
 ## License
 

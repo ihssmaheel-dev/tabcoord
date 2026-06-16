@@ -1,4 +1,5 @@
-import { createSharedStore, eventBus, diff, apply } from '@tabcoord/core';
+import { createSharedStore, eventBus, apply } from 'tabcoord';
+import { diff } from 'tabcoord/diff';
 
 let passed = 0;
 let failed = 0;
@@ -13,7 +14,7 @@ function assert(condition, label) {
   }
 }
 
-console.log('SSR Smoke Test — @tabcoord/core\n');
+console.log('SSR Smoke Test — tabcoord\n');
 
 // 1. createSharedStore in non-browser (SSR) environment
 console.log('1. createSharedStore (SSR)');
@@ -58,10 +59,9 @@ console.log('\n6. eventBus');
 const bus = eventBus('ssr-events');
 let handlerCalled = false;
 bus.on('test:event', () => { handlerCalled = true; });
-// In SSR, emit goes through noop transport — handler won't fire
-// but the API should not throw
+// In SSR, local handlers fire directly via emit()
 bus.emit('test:event', { data: 42 });
-assert(handlerCalled === false, 'eventBus emit does not throw in SSR (noop transport)');
+assert(handlerCalled === true, 'eventBus local handler fires on emit');
 bus.on('user:*', () => {});
 bus.destroy();
 assert(true, 'eventBus destroy does not throw');

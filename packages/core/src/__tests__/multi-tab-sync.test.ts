@@ -327,4 +327,41 @@ describe('multi-tab state sync', () => {
     storeA.destroy();
     storeB.destroy();
   });
+
+  it('state-patches received during bootstrap are replayed after sync', async () => {
+    const idA = makeTabId();
+    const idB = makeTabId();
+
+    const [transportA, transportB] = createSharedTransportPair();
+
+    // Tab A starts first and sets initial state
+    vi.stubGlobal('crypto', { randomUUID: () => idA });
+    const storeA = new InternalStore<{ count: number }>(
+      { count: 0 }, transportA, undefined, 'sync-test-pending',
+    );
+    vi.advanceTimersByTime(1000);
+
+    storeA.set({ count: 10 });
+
+    // Tab B starts after tab A is synced
+    // During Tab B's bootstrap, Tab A sends another update
+    vi.stubGlobal('crypto', { randomUUID: () => idB });
+    const storeB = new InternalStore<{ count: number }>(
+      { count: 0 }, transportB, undefined, 'sync-test-pending',
+    );
+
+    // Tab A updates while Tab B is bootstrapping
+    // (only advance partway through Tab B's bootstrap)
+    vi.advanceTimersByTime(100);
+    storeA.set({ count: 20 });
+
+    // Now complete Tab B's bootstrap
+    vi.advanceTimersByTime(1000);
+
+    // Tab B should have received the update that happened during bootstrap
+    expect(storeB.get()).toEqual({ count: 20 });
+
+    storeA.destroy();
+    storeB.destroy();
+  });
 });

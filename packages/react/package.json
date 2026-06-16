@@ -1,6 +1,6 @@
 {
   "name": "tabcoord-react",
-  "version": "0.1.3",
+  "version": "1.0.0",
   "description": "React bindings for tabcoord",
   "type": "module",
   "sideEffects": false,

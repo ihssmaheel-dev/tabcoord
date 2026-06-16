@@ -22,14 +22,17 @@ export function resolveInitial<T>(
     }
   }
 
-  // 2. HMR cache — module reloaded in dev, factory already ran once
-  if (_factoryCache.has(name)) {
+  // 2. HMR cache — only for factory functions (static values get fresh copies)
+  if (typeof initial === 'function' && _factoryCache.has(name)) {
     return _factoryCache.get(name) as T;
   }
 
   // 3. True cold start
   const result = typeof initial === 'function' ? (initial as () => T)() : initial;
-  _factoryCache.set(name, result);
+  // Only cache factory results — static values should always be fresh copies
+  if (typeof initial === 'function') {
+    _factoryCache.set(name, result);
+  }
   return result;
 }
 

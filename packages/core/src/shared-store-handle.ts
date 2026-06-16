@@ -9,6 +9,16 @@ export class SharedStoreHandle<T = unknown> {
     this._fallback = fallback;
   }
 
+  /**
+   * Returns the current state. During SSR bootstrap or before the store
+   * is initialized, returns `undefined` (cast to `T`). After `destroy()`,
+   * returns the last known state.
+   *
+   * @remarks
+   * If `get()` returns `undefined`, callers should handle it explicitly
+   * to avoid runtime errors. The `status` property can be checked to
+   * determine if the store is ready.
+   */
   get(): T {
     const inst = getInstance(this.name) as InternalStoreInterface<T> | undefined;
     if (inst) return inst.get();

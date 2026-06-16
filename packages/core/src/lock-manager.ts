@@ -234,7 +234,13 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
     ): Promise<boolean> {
       if (destroyed) return false;
 
-      if (isLocked() && !isHeldByThisTab()) {
+      // Check and acquire atomically — no TOCTOU race
+      if (isHeldByThisTab()) {
+        await this.acquire(fn);
+        return true;
+      }
+
+      if (isLocked()) {
         return false;
       }
 

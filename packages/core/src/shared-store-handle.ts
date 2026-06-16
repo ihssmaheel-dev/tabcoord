@@ -11,20 +11,20 @@ export class SharedStoreHandle<T = unknown> {
 
   /**
    * Returns the current state. During SSR bootstrap or before the store
-   * is initialized, returns `undefined` (cast to `T`). After `destroy()`,
-   * returns the last known state.
+   * is initialized, returns `undefined`. After `destroy()`, returns the
+   * last known state.
    *
    * @remarks
    * If `get()` returns `undefined`, callers should handle it explicitly
    * to avoid runtime errors. The `status` property can be checked to
    * determine if the store is ready.
    */
-  get(): T {
+  get(): T | undefined {
     const inst = getInstance(this.name) as InternalStoreInterface<T> | undefined;
     if (inst) return inst.get();
     if (this._fallback !== undefined) return this._fallback;
     console.warn(`[tabcoord] Store "${this.name}" not initialized yet`);
-    return undefined as T;
+    return undefined;
   }
 
   set(value: T | ((prev: T) => T)): void {

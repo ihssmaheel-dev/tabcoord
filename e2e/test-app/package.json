@@ -1,5 +1,5 @@
-{
-  "name": "@tabcoord/e2e-test-app",
+﻿{
+  "name": "e2e-test-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",

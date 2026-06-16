@@ -72,10 +72,10 @@ interface State {
 
 ## Reserved Keys
 
-The keys `_meta` and `$tabcoord` are stripped from all payloads before storage. If your state contains these keys, they will be silently removed.
+The keys `_meta`, `$tabcoord`, and `$patch` are stripped from event bus payloads during transport. Your state data is **not** affected — these keys are preserved in store state.
 
 ```typescript
-// This works — _meta and $tabcoord are stripped
+// State data is preserved as-is
 cart.set({ items: [], _meta: 'user-data', $tabcoord: 'something' });
-// Stored as: { items: [] }
+// Stored as: { items: [], _meta: 'user-data', $tabcoord: 'something' }
 ```

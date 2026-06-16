@@ -53,14 +53,14 @@ const items = useSharedStore(cart, s => s.items);
 For apps that need dependency injection:
 
 ```tsx
-import { createStoreContext } from '@tabcoord/react';
+import { createStoreContext } from 'tabcoord-react';
 
 const { Provider, useStore } = createStoreContext({
   name: 'cart',
   initial: { items: [] },
 });
 
-// Provider wraps children — store is created at module scope
+// Store is lazily created on first Provider mount (not at module scope)
 function App() {
   return (
     <Provider>
@@ -70,7 +70,7 @@ function App() {
 }
 ```
 
-The `Provider` component calls `store.destroy()` on unmount, cleaning up the transport and subscriptions.
+The `Provider` component lazily creates the store on first mount and calls `store.destroy()` on unmount, cleaning up the transport and subscriptions. Using `useStore()` outside a `Provider` throws an error.
 
 ## What Doesn't Work in SSR
 

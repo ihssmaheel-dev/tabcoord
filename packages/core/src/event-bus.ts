@@ -42,17 +42,21 @@ function patternToRegex(pattern: string): { regex: RegExp | null; isWildcard: bo
   return { regex: null, isWildcard: false };
 }
 
+export interface EventBusOptions {
+  maxReplay?: number;
+}
+
 export interface EventBus {
   on(pattern: string, handler: EventHandler, options?: { replay?: boolean }): () => void;
   emit(type: string, payload?: unknown): void;
   destroy(): void;
 }
 
-export function eventBus(name: string): EventBus {
+export function eventBus(name: string, options?: EventBusOptions): EventBus {
   const transport = createTransport(name);
   const handlers: HandlerEntry[] = [];
   const replayBuffer: BusEvent[] = [];
-  const MAX_REPLAY = 20;
+  const MAX_REPLAY = options?.maxReplay ?? 20;
   const sourceSequences = new Map<string, number>();
 
   function handleIncoming(event: BusEvent): void {

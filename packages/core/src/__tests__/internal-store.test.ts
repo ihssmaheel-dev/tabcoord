@@ -78,23 +78,23 @@ describe('InternalStore', () => {
     store.destroy();
   });
 
-  it('strips reserved keys from object payloads', async () => {
+  it('preserves _meta and $tabcoord in user state (no stripping)', async () => {
     const { InternalStore } = await import('../internal-store.js');
     const store = new InternalStore<Record<string, unknown>>({ a: 1 }, mockTransport);
     vi.advanceTimersByTime(750);
 
-    store.set({ a: 2, _meta: 'should-be-removed', $tabcoord: 'also-removed' });
-    expect(store.get()).toEqual({ a: 2 });
+    store.set({ a: 2, _meta: 'user-data', $tabcoord: 'user-data' });
+    expect(store.get()).toEqual({ a: 2, _meta: 'user-data', $tabcoord: 'user-data' });
     store.destroy();
   });
 
-  it('strips reserved keys from setter results too', async () => {
+  it('preserves reserved keys in setter results (no stripping)', async () => {
     const { InternalStore } = await import('../internal-store.js');
     const store = new InternalStore<Record<string, unknown>>({ a: 1 }, mockTransport);
     vi.advanceTimersByTime(750);
 
-    store.set(() => ({ a: 3, _meta: 'stripped-in-setter' }));
-    expect(store.get()).toEqual({ a: 3 });
+    store.set(() => ({ a: 3, _meta: 'user-data' }));
+    expect(store.get()).toEqual({ a: 3, _meta: 'user-data' });
     store.destroy();
   });
 

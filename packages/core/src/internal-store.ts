@@ -1,6 +1,6 @@
 import type { InternalStoreInterface } from './internal-store-interface.js';
 import type { Transport } from './transport/types.js';
-import { MessageBus, stripReservedKeys, type WireMessage } from './message-bus.js';
+import { MessageBus, type WireMessage } from './message-bus.js';
 import type { Clock } from './clock.js';
 import { tick, compare, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
@@ -130,14 +130,9 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private replayWriteQueue(): void {
     for (const write of this.writeQueue) {
       if (typeof write === 'function') {
-        const resolved = (write as Setter<T>)(this.state);
-        this.state = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
-          ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
-          : resolved;
+        this.state = (write as Setter<T>)(this.state);
       } else {
-        this.state = typeof write === 'object' && write !== null && !Array.isArray(write)
-          ? (stripReservedKeys(write as unknown as Record<string, unknown>) as unknown as T)
-          : write as T;
+        this.state = write as T;
       }
     }
     this.writeQueue = [];
@@ -197,17 +192,20 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     let next: T;
     if (typeof value === 'function') {
-      const resolved = (value as Setter<T>)(this.state);
-      next = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
-        ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
-        : resolved;
+      next = (value as Setter<T>)(this.state);
     } else {
-      next = typeof value === 'object' && value !== null && !Array.isArray(value)
-        ? (stripReservedKeys(value as unknown as Record<string, unknown>) as unknown as T)
-        : value;
+      next = value as T;
     }
 
-    if (JSON.stringify(next) === JSON.stringify(this.state)) return;
+    // Shallow equality check — avoids expensive JSON.stringify on every write
+    if (next === this.state) return;
+    if (typeof next === 'object' && next !== null && typeof this.state === 'object' && this.state !== null) {
+      const nextKeys = Object.keys(next as Record<string, unknown>);
+      const stateKeys = Object.keys(this.state as Record<string, unknown>);
+      if (nextKeys.length === stateKeys.length && nextKeys.every((k) => (next as Record<string, unknown>)[k] === (this.state as Record<string, unknown>)[k])) {
+        return;
+      }
+    }
 
     this.clock = tick();
     this.state = next;

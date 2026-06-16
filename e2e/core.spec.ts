@@ -80,8 +80,8 @@ test.describe('multi-tab event bus', () => {
     await tabA.click('#emitEventBtn');
     await expect(tabB.locator('#eventCount')).toHaveText('1');
 
-    // Tab A should NOT have received its own event (filtered by source)
-    await expect(tabA.locator('#eventCount')).toHaveText('0');
+    // Tab A should also receive its own event (local handlers are invoked)
+    await expect(tabA.locator('#eventCount')).toHaveText('1');
   });
 
   test('multiple events are received in order', async ({ context }) => {

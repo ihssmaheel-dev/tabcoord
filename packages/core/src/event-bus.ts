@@ -32,7 +32,7 @@ export function resetEventId(): void {
   _eventId = 0;
 }
 
-function patternToRegex(pattern: string): { regex: RegExp | null; isWildcard: boolean } {
+/*@__PURE__*/ function patternToRegex(pattern: string): { regex: RegExp | null; isWildcard: boolean } {
   if (pattern.includes('*')) {
     const escaped = pattern
       .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
@@ -125,8 +125,15 @@ export function eventBus(name: string, options?: EventBusOptions): EventBus {
       };
 
       transport.send(event);
-      // Do NOT add to replay buffer — self-events are not replayed
-      // to maintain consistency with the source-filtering contract
+
+      // Also invoke local handlers directly — transport filters self-messages
+      for (const entry of handlers) {
+        if (entry.isWildcard && entry.regex?.test(event.type)) {
+          entry.handler(event);
+        } else if (!entry.isWildcard && entry.pattern === event.type) {
+          entry.handler(event);
+        }
+      }
     },
 
     destroy(): void {

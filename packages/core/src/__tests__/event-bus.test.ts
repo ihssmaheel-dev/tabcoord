@@ -21,8 +21,9 @@ describe('eventBus', () => {
     bus.on('test-event', (e) => { received.push(e.payload); });
 
     bus.emit('test-event', { x: 1 });
-    // Own messages are filtered — handler should NOT fire
-    expect(received).toHaveLength(0);
+    // Local handlers receive own emissions
+    expect(received).toHaveLength(1);
+    expect(received[0]).toEqual({ x: 1 });
 
     bus.destroy();
   });

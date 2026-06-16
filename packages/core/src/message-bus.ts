@@ -45,6 +45,7 @@ export function stripReservedKeys<T extends Record<string, unknown>>(payload: T)
   const result = { ...payload };
   delete result['_meta'];
   delete result['$tabcoord'];
+  delete result['$patch'];
   return result;
 }
 

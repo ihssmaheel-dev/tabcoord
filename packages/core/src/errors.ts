@@ -7,28 +7,28 @@ export class TabcoordError extends Error {
 
 export class StoreDestroyedError extends TabcoordError {
   constructor(storeName: string) {
-    super(`Store "${storeName}" has been destroyed`);
+    super(`"${storeName}" destroyed`);
     this.name = 'StoreDestroyedError';
   }
 }
 
 export class LockTimeoutError extends TabcoordError {
   constructor(lockName: string) {
-    super(`Lock "${lockName}" acquire timed out`);
+    super(`"${lockName}" timeout`);
     this.name = 'LockTimeoutError';
   }
 }
 
 export class LockManagerDestroyedError extends TabcoordError {
   constructor() {
-    super('LockManager has been destroyed');
+    super('LockManager destroyed');
     this.name = 'LockManagerDestroyedError';
   }
 }
 
 export class BootstrapTimeoutError extends TabcoordError {
   constructor(storeName: string) {
-    super(`Store "${storeName}" bootstrap timed out — no leader elected`);
+    super(`"${storeName}" bootstrap timeout`);
     this.name = 'BootstrapTimeoutError';
   }
 }

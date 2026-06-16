@@ -24,6 +24,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private _status: 'bootstrap' | 'synced' = 'bootstrap';
   private subscribers = new Set<(state: T) => void>();
   private writeQueue: Array<T | Setter<T>> = [];
+  private pendingPatches: Array<{ state: T | Patch; clock: Clock }> = [];
   private bus: MessageBus;
   private destroyed = false;
   private outerTimer: ReturnType<typeof setTimeout> | null = null;
@@ -89,9 +90,13 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       this.clock = incomingClock;
       this._bootstrapResponses++;
 
-      // Replay queued writes on top of received state
+      // Replay queued writes and pending patches on top of received state
       this.replayWriteQueue();
+      this.replayPendingPatches();
       this._status = 'synced';
+      if (this.storeName && this.persistPrefix) {
+        persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
+      }
       this.bus.emit('sync-ack', { tabId: getTabId() }, this.clock);
       this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
       this.notify();
@@ -99,10 +104,16 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     // Handle incoming state-patch from other tabs (live sync)
     this.bus.on('state-patch', (msg: WireMessage) => {
-      if (this._status !== 'synced') return;
       const payload = msg.payload as { state: T | Patch; clock: string };
       if (payload.state === undefined) return;
       const incomingClock = deserialize(payload.clock);
+
+      // Queue patches during bootstrap — replay after sync completes
+      if (this._status !== 'synced') {
+        this.pendingPatches.push({ state: payload.state, clock: incomingClock });
+        return;
+      }
+
       const cmp = compare(incomingClock, this.clock);
       if (cmp < 0) return; // reject stale state
       if (cmp === 0) return; // reject same clock (prevents echo loops)
@@ -139,6 +150,25 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     this.writeQueue = [];
   }
 
+  private replayPendingPatches(): void {
+    // Sort by clock to apply in causal order
+    this.pendingPatches.sort((a, b) => compare(a.clock, b.clock));
+    for (const patch of this.pendingPatches) {
+      const cmp = compare(patch.clock, this.clock);
+      if (cmp <= 0) continue; // skip stale or equal
+      if (isPatch(patch.state)) {
+        this.state = apply(
+          this.state as unknown as Record<string, unknown>,
+          patch.state as Patch,
+        ) as T;
+      } else {
+        this.state = patch.state as T;
+      }
+      this.clock = patch.clock;
+    }
+    this.pendingPatches = [];
+  }
+
   private startBootstrap(): void {
     this.outerTimer = setTimeout(() => {
       if (this.destroyed) return;
@@ -171,7 +201,11 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
   private becomeLeader(): void {
     this.replayWriteQueue();
+    this.replayPendingPatches();
     this._status = 'synced';
+    if (this.storeName && this.persistPrefix) {
+      persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
+    }
     this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
     this.notify();
   }
@@ -231,6 +265,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     this.bus.destroy();
     this.subscribers.clear();
     this.writeQueue = [];
+    this.pendingPatches = [];
   }
 
   get status(): 'bootstrap' | 'synced' {

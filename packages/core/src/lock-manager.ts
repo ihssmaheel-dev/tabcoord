@@ -28,6 +28,7 @@ interface LockGrantPayload {
 
 interface LockReleasePayload {
   lockName: string;
+  releasingTabId: string;
 }
 
 export function lockManager(name: string, options?: LockManagerOptions): LockManager {
@@ -71,7 +72,7 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
   }
 
   function releaseLock(): void {
-    bus.emit('lock-release', { lockName: name } satisfies LockReleasePayload);
+    bus.emit('lock-release', { lockName: name, releasingTabId: tabId } satisfies LockReleasePayload);
     clearTTL();
   }
 
@@ -138,13 +139,9 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
     const payload = msg.payload as LockReleasePayload;
     if (payload.lockName !== name) return;
 
-    // A tab released — clear its holder entry and grant to next in queue
-    // Find and remove the releasing tab from holders
-    for (const [holderTabId] of holders) {
-      if (holderTabId !== tabId) {
-        holders.delete(holderTabId);
-        break;
-      }
+    // Remove the specific tab that released the lock
+    if (payload.releasingTabId) {
+      holders.delete(payload.releasingTabId);
     }
 
     // Grant to next in queue if lock is now free

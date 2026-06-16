@@ -19,8 +19,9 @@ interface HeartbeatPayload {
   timestamp: number;
 }
 
-const DEFAULT_HEARTBEAT_INTERVAL = 2000;
-const DEFAULT_TIMEOUT = 5000;
+  const DEFAULT_HEARTBEAT_INTERVAL = 2000;
+  const DEFAULT_TIMEOUT = 5000;
+  const LEADERSHIP_COOLDOWN = 3000;
 
 function hasWebLocks(): boolean {
   return typeof navigator !== 'undefined' && typeof navigator.locks !== 'undefined';
@@ -41,6 +42,7 @@ export function leaderElection(
   let destroyed = false;
   let webLockAcquired = false;
   let webLockRelease: (() => void) | null = null;
+  let lastLeadershipChange = 0;
 
   const heard = new Map<string, number>(); // tabId -> last heartbeat timestamp
   const electedCallbacks: Array<() => void> = [];
@@ -60,6 +62,7 @@ export function leaderElection(
   function becomeLeader(): void {
     if (_isLeader || destroyed) return;
     _isLeader = true;
+    lastLeadershipChange = Date.now();
     console.log(`[leader:${name}] Tab ${tabId} became LEADER`);
     for (const cb of electedCallbacks) cb();
   }
@@ -68,8 +71,24 @@ export function leaderElection(
   function loseLeadership(): void {
     if (!_isLeader || destroyed) return;
     _isLeader = false;
+    lastLeadershipChange = Date.now();
     console.log(`[leader:${name}] Tab ${tabId} LOST leadership`);
     for (const cb of demotedCallbacks) cb();
+  }
+
+  // Cooldown-guarded version for heartbeat-based transitions only
+  function becomeLeaderWithCooldown(): void {
+    if (_isLeader || destroyed) return;
+    const now = Date.now();
+    if (now - lastLeadershipChange < LEADERSHIP_COOLDOWN) return;
+    becomeLeader();
+  }
+
+  function loseLeadershipWithCooldown(): void {
+    if (!_isLeader || destroyed) return;
+    const now = Date.now();
+    if (now - lastLeadershipChange < LEADERSHIP_COOLDOWN) return;
+    loseLeadership();
   }
 
   // Heartbeat-based evaluation (fallback when Web Locks hasn't acquired)
@@ -85,9 +104,9 @@ export function leaderElection(
     console.log(`[leader:${name}] evaluate: alive=${alive.join(',')} newLeader=${newLeader} isLeader=${_isLeader} webLockAcquired=${webLockAcquired}`);
 
     if (newLeader) {
-      becomeLeader();
+      becomeLeaderWithCooldown();
     } else {
-      loseLeadership();
+      loseLeadershipWithCooldown();
     }
   }
 
@@ -123,7 +142,7 @@ export function leaderElection(
           // Lock held — we are leader
           webLockAcquired = true;
           console.log(`[leader:${name}] Web Lock acquired!`);
-          if (!destroyed) becomeLeader();
+          if (!destroyed) becomeLeader(); // immediate
 
           // Wait until released or destroyed
           const check = setInterval(() => {
@@ -144,7 +163,7 @@ export function leaderElection(
       // Lock was released (tab crashed, navigation, etc.)
       webLockAcquired = false;
       if (!destroyed) {
-        loseLeadership();
+        loseLeadership(); // immediate
         // Try to re-acquire after a brief delay
         setTimeout(() => {
           if (!destroyed) tryWebLock();
@@ -168,7 +187,7 @@ export function leaderElection(
     if (destroyed) return;
     if (hasWebLocks() && webLockAcquired) return; // Web Locks handles this
     if (document.visibilityState === 'hidden' && _isLeader) {
-      loseLeadership();
+      loseLeadership(); // immediate, no cooldown
       heard.delete(tabId);
     }
   }
@@ -178,11 +197,11 @@ export function leaderElection(
     // On pagehide, release Web Lock if held
     if (hasWebLocks() && webLockAcquired) {
       webLockAcquired = false;
-      loseLeadership();
+      loseLeadership(); // immediate, no cooldown
     }
     // For heartbeat: step down
     if (_isLeader) {
-      loseLeadership();
+      loseLeadership(); // immediate, no cooldown
     }
   }
 

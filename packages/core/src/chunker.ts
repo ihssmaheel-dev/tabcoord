@@ -14,11 +14,12 @@ export interface ChunkMessage {
   payload: string;
 }
 
-export function chunk(
+/*@__PURE__*/ export function chunk(
   data: unknown,
   _clock?: Clock,
   threshold: number = DEFAULT_THRESHOLD,
 ): ChunkMessage[] {
+  // For small payloads, stringify only once and check length
   const json = JSON.stringify(data);
   if (json.length <= threshold) {
     return [

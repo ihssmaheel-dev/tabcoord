@@ -41,7 +41,7 @@ export function resetMsgId(): void {
   _sequence = 0;
 }
 
-export function stripReservedKeys<T extends Record<string, unknown>>(payload: T): T {
+/*@__PURE__*/ export function stripReservedKeys<T extends Record<string, unknown>>(payload: T): T {
   const result = { ...payload };
   delete result['_meta'];
   delete result['$tabcoord'];

@@ -121,18 +121,17 @@ describe('InternalStore', () => {
     expect(fn).not.toHaveBeenCalled();
   });
 
-  it('set() is no-op after destroy with warning', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('set() is no-op after destroy with error callback', async () => {
+    const onError = vi.fn();
     const { InternalStore } = await import('../internal-store.js');
-    const store = new InternalStore({ count: 0 }, mockTransport);
+    const store = new InternalStore({ count: 0 }, mockTransport, onError);
     vi.advanceTimersByTime(750);
 
     store.destroy();
     store.set({ count: 999 });
 
     expect(store.get()).toEqual({ count: 0 }); // unchanged
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    expect(onError).toHaveBeenCalled();
   });
 
   it('get() returns last state after destroy', async () => {

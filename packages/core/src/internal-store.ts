@@ -6,6 +6,7 @@ import { tick, compare, serialize, deserialize } from './clock.js';
 import { getTabId } from './tab-id.js';
 import { persistState } from './persist.js';
 import { apply, isPatch, type Patch } from './diff.js';
+import { StoreDestroyedError } from './errors.js';
 
 type Setter<T> = (prev: T) => T;
 
@@ -181,7 +182,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
   set(value: T | Setter<T>): void {
     if (this.destroyed) {
-      console.warn(`[tabcoord] set() called on destroyed store`);
+      this.onError?.(new StoreDestroyedError(this.storeName ?? 'unknown'));
       return;
     }
 

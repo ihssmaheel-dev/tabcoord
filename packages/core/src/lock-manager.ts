@@ -1,6 +1,7 @@
 import { createTransport } from './transport/resolver.js';
 import { MessageBus, type WireMessage } from './message-bus.js';
 import { getTabId } from './tab-id.js';
+import { LockManagerDestroyedError, LockTimeoutError } from './errors.js';
 
 export interface LockManager {
   acquire(fn: () => Promise<void> | void, options?: { timeout?: number }): Promise<void>;
@@ -158,7 +159,7 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
       fn: () => Promise<void> | void,
       options?: { timeout?: number },
     ): Promise<void> {
-      if (destroyed) throw new Error('LockManager destroyed');
+      if (destroyed) throw new LockManagerDestroyedError();
 
       // Reentrancy: already holding the lock
       if (isHeldByThisTab()) {
@@ -185,7 +186,7 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
           timer = setTimeout(() => {
             const idx = pendingAcquires.findIndex((p) => p.resolve === resolve);
             if (idx !== -1) pendingAcquires.splice(idx, 1);
-            reject(new Error('Lock acquire timeout'));
+            reject(new LockTimeoutError(name));
           }, options.timeout);
         }
 
@@ -253,7 +254,7 @@ export function lockManager(name: string, options?: LockManagerOptions): LockMan
       holders.clear();
       for (const p of pendingAcquires) {
         if (p.timer) clearTimeout(p.timer);
-        p.reject(new Error('LockManager destroyed'));
+        p.reject(new LockManagerDestroyedError());
       }
       pendingAcquires.length = 0;
     },

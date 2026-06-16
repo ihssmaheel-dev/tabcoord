@@ -56,7 +56,7 @@ export function eventBus(name: string): EventBus {
   const sourceSequences = new Map<string, number>();
 
   function handleIncoming(event: BusEvent): void {
-    if (!event._meta || event._meta.source === getTabId()) return;
+    if (!event._meta) return;
 
     // Enforce ordering: reject messages with sequence <= last seen from this source
     const source = event._meta.source;

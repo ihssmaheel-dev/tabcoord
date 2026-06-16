@@ -18,6 +18,7 @@ export interface MessageMeta {
   type: MessageType;
   source: string;
   timestamp: number;
+  sequence: number;
   clock?: string;
 }
 
@@ -29,6 +30,7 @@ export interface WireMessage {
 export type MessageHandler = (msg: WireMessage) => void;
 
 let _msgId = 0;
+let _sequence = 0;
 
 function generateId(): string {
   return `${getTabId()}:${++_msgId}`;
@@ -36,6 +38,7 @@ function generateId(): string {
 
 export function resetMsgId(): void {
   _msgId = 0;
+  _sequence = 0;
 }
 
 export function stripReservedKeys<T extends Record<string, unknown>>(payload: T): T {
@@ -56,6 +59,7 @@ export function createMessage(
       type,
       source: getTabId(),
       timestamp: Date.now(),
+      sequence: ++_sequence,
       clock: clock ? `${clock.counter}:${clock.tabId}` : undefined,
     },
     payload,

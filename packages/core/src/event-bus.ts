@@ -53,9 +53,18 @@ export function eventBus(name: string): EventBus {
   const handlers: HandlerEntry[] = [];
   const replayBuffer: BusEvent[] = [];
   const MAX_REPLAY = 20;
+  const sourceSequences = new Map<string, number>();
 
   function handleIncoming(event: BusEvent): void {
     if (!event._meta || event._meta.source === getTabId()) return;
+
+    // Enforce ordering: reject messages with sequence <= last seen from this source
+    const source = event._meta.source;
+    const msgSequence = (event._meta as unknown as { sequence?: number }).sequence ?? 0;
+    const lastSeq = sourceSequences.get(source) ?? 0;
+    if (msgSequence > 0 && msgSequence <= lastSeq) return;
+    if (msgSequence > 0) sourceSequences.set(source, msgSequence);
+
     replayBuffer.push(event);
     if (replayBuffer.length > MAX_REPLAY) replayBuffer.shift();
 

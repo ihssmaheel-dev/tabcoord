@@ -30,6 +30,9 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
   private persistPrefix: string | null = null;
   private storeName: string | null = null;
 
+  private _bootstrapPeers = new Set<string>();
+  private _bootstrapResponses = 0;
+
   constructor(
     initial: T,
     transport: Transport,
@@ -44,18 +47,24 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
     // Handle incoming sync-request from other tabs
     this.bus.on('sync-request', (msg: WireMessage) => {
-      const payload = msg.payload as { knownClock?: string } | undefined;
+      const payload = msg.payload as { knownClock?: string; senderTabId?: string } | undefined;
       const senderClock = payload?.knownClock
         ? deserialize(payload.knownClock)
         : null;
+      const senderTabId = payload?.senderTabId;
 
-      // Allow bootstrap tabs to respond to sync-requests (fixes dual-leader race)
-      // but prevent two bootstrap tabs from responding to each other
+      if (senderTabId) {
+        this._bootstrapPeers.add(senderTabId);
+      }
+
+      // During bootstrap: only respond if we have a strictly higher clock
+      // or same counter but lower tabId (deterministic tiebreak)
       if (this._status === 'bootstrap') {
         if (!senderClock) return;
         const cmp = compare(this.clock, senderClock);
-        if (cmp > 0) return; // sender has higher clock, we yield
+        if (cmp < 0) return; // sender has higher clock, we yield
         if (cmp === 0 && this.clock.tabId > senderClock.tabId) return; // tiebreak: higher tabId yields
+        if (cmp === 0 && this.clock.tabId === senderClock.tabId) return; // same tab, ignore
       }
 
       this.bus.emit('sync-response', {
@@ -69,32 +78,20 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     this.bus.on('sync-response', (msg: WireMessage) => {
       if (this._status !== 'bootstrap') return;
       const payload = msg.payload as { state: T; clock: string };
-      if (payload.state !== undefined) {
-        const incomingClock = deserialize(payload.clock);
-        // Accept if incoming clock is higher (more recent state)
-        // or equal (first responder wins tiebreak)
-        const cmp = compare(incomingClock, this.clock);
-        if (cmp < 0) return; // reject stale state
-        this.state = payload.state;
-        this.clock = incomingClock;
-      }
-      // Replay queued writes on top of received state (with reserved key stripping)
-      for (const write of this.writeQueue) {
-        if (typeof write === 'function') {
-          const resolved = (write as Setter<T>)(this.state);
-          this.state = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
-            ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
-            : resolved;
-        } else {
-          this.state = typeof write === 'object' && write !== null && !Array.isArray(write)
-            ? (stripReservedKeys(write as unknown as Record<string, unknown>) as unknown as T)
-            : write as T;
-        }
-      }
-      this.writeQueue = [];
+      if (payload.state === undefined) return;
+      const incomingClock = deserialize(payload.clock);
+      // Accept if incoming clock is strictly higher (more recent state)
+      const cmp = compare(incomingClock, this.clock);
+      if (cmp <= 0) return; // reject stale or equal state (first responder wins)
+
+      this.state = payload.state;
+      this.clock = incomingClock;
+      this._bootstrapResponses++;
+
+      // Replay queued writes on top of received state
+      this.replayWriteQueue();
       this._status = 'synced';
       this.bus.emit('sync-ack', { tabId: getTabId() }, this.clock);
-      // Broadcast final state after replaying queued writes
       this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
       this.notify();
     });
@@ -106,7 +103,8 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       if (payload.state === undefined) return;
       const incomingClock = deserialize(payload.clock);
       const cmp = compare(incomingClock, this.clock);
-      if (cmp < 0) return; // reject stale state only (accept equal or higher)
+      if (cmp < 0) return; // reject stale state
+      if (cmp === 0) return; // reject same clock (prevents echo loops)
 
       // Apply patch (diff) or full state replacement
       if (isPatch(payload.state)) {
@@ -129,33 +127,57 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
     this.startBootstrap();
   }
 
+  private replayWriteQueue(): void {
+    for (const write of this.writeQueue) {
+      if (typeof write === 'function') {
+        const resolved = (write as Setter<T>)(this.state);
+        this.state = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
+          ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
+          : resolved;
+      } else {
+        this.state = typeof write === 'object' && write !== null && !Array.isArray(write)
+          ? (stripReservedKeys(write as unknown as Record<string, unknown>) as unknown as T)
+          : write as T;
+      }
+    }
+    this.writeQueue = [];
+  }
+
   private startBootstrap(): void {
     this.outerTimer = setTimeout(() => {
       if (this.destroyed) return;
-      this.bus.emit('sync-request', { knownClock: serialize(this.clock) }, this.clock);
+      this.bus.emit('sync-request', {
+        knownClock: serialize(this.clock),
+        senderTabId: getTabId(),
+      }, this.clock);
 
       this.bootstrapTimer = setTimeout(() => {
         if (this.destroyed || this._status === 'synced') return;
-        // Timeout — we are the first tab (or no one answered)
-        this._status = 'synced';
-        const queued = this.writeQueue;
-        this.writeQueue = [];
-        for (const write of queued) {
-          if (typeof write === 'function') {
-            const resolved = (write as Setter<T>)(this.state);
-            this.state = typeof resolved === 'object' && resolved !== null && !Array.isArray(resolved)
-              ? (stripReservedKeys(resolved as unknown as Record<string, unknown>) as unknown as T)
-              : resolved;
-          } else {
-            this.state = typeof write === 'object' && write !== null && !Array.isArray(write)
-              ? (stripReservedKeys(write as unknown as Record<string, unknown>) as unknown as T)
-              : write as T;
+        // Timeout — no higher-clock tab responded. We are the leader.
+        // Deterministic: if multiple tabs timeout simultaneously,
+        // only the one with the lowest tabId becomes leader.
+        if (this._bootstrapPeers.size > 0) {
+          const allTabs = Array.from(this._bootstrapPeers).concat(getTabId()).sort();
+          if (allTabs[0] !== getTabId()) {
+            // Another tab has lower ID — wait for it to become leader
+            this.bootstrapTimer = setTimeout(() => {
+              if (this.destroyed || this._status === 'synced') return;
+              // Second timeout — we are the leader after all
+              this.becomeLeader();
+            }, BOOTSTRAP_TIMEOUT);
+            return;
           }
         }
-        this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
-        this.notify();
+        this.becomeLeader();
       }, BOOTSTRAP_TIMEOUT);
     }, jitter());
+  }
+
+  private becomeLeader(): void {
+    this.replayWriteQueue();
+    this._status = 'synced';
+    this.bus.emit('state-patch', { state: this.state, clock: serialize(this.clock) }, this.clock);
+    this.notify();
   }
 
   get(): T {

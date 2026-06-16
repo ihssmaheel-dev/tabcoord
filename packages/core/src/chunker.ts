@@ -14,24 +14,68 @@ export interface ChunkMessage {
   payload: string;
 }
 
+function estimateSize(data: unknown): number {
+  if (data === null || data === undefined) return 4;
+  if (typeof data === 'boolean') return data ? 4 : 5;
+  if (typeof data === 'number') return String(data).length;
+  if (typeof data === 'string') return data.length + 2; // +2 for quotes
+  if (typeof data === 'object') {
+    if (Array.isArray(data)) {
+      let size = 2; // []
+      for (let i = 0; i < data.length; i++) {
+        if (i > 0) size += 1; // comma
+        size += estimateSize(data[i]);
+      }
+      return size;
+    }
+    // Object — estimate conservatively (keys + values)
+    let size = 2; // {}
+    let first = true;
+    for (const key in data) {
+      if (!first) size += 1; // comma
+      first = false;
+      size += key.length + 3; // "key":
+      size += estimateSize((data as Record<string, unknown>)[key]);
+    }
+    return size;
+  }
+  return 16; // fallback for functions, symbols, etc.
+}
+
 /*@__PURE__*/ export function chunk(
   data: unknown,
   _clock?: Clock,
   threshold: number = DEFAULT_THRESHOLD,
 ): ChunkMessage[] {
-  // For small payloads, stringify only once and check length
-  const json = JSON.stringify(data);
-  if (json.length <= threshold) {
-    return [
-      {
-        _meta: { id: '', chunkIndex: 0, totalChunks: 1 },
-        payload: json,
-      },
-    ];
+  // Quick estimate before full stringify — avoids allocation for tiny payloads
+  const estimated = estimateSize(data);
+  if (estimated <= threshold) {
+    const json = JSON.stringify(data);
+    // Verify estimate was accurate
+    if (json.length <= threshold) {
+      return [
+        {
+          _meta: { id: '', chunkIndex: 0, totalChunks: 1 },
+          payload: json,
+        },
+      ];
+    }
+    // Estimate was wrong — fall through to chunking
+    const totalChunks = Math.ceil(json.length / threshold);
+    const id = `${Date.now()}:${Math.random().toString(36).slice(2, 9)}`;
+    const chunks: ChunkMessage[] = [];
+    for (let i = 0; i < totalChunks; i++) {
+      chunks.push({
+        _meta: { id, chunkIndex: i, totalChunks },
+        payload: json.slice(i * threshold, (i + 1) * threshold),
+      });
+    }
+    return chunks;
   }
 
+  // Estimate says it's large — stringify once and chunk
+  const json = JSON.stringify(data);
   const totalChunks = Math.ceil(json.length / threshold);
-  // generate a shared id for all chunks
   const id = `${Date.now()}:${Math.random().toString(36).slice(2, 9)}`;
 
   const chunks: ChunkMessage[] = [];

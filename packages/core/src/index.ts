@@ -17,7 +17,7 @@ import { resetCounter } from './clock.js';
 _bindResetCounter(resetCounter);
 export { chunk, createChunkAssembler } from './chunker.js';
 export type { ChunkMessage, AcceptResult } from './chunker.js';
-export { diff, apply, isPatch } from './diff.js';
+export { apply, isPatch } from './diff.js';
 export type { Patch } from './diff.js';
 export {
   setItem as syncStorageSetItem,
@@ -36,3 +36,10 @@ export { leaderElection } from './leader-election.js';
 export type { LeaderElection, LeaderElectionOptions } from './leader-election.js';
 export { lockManager } from './lock-manager.js';
 export type { LockManager, LockManagerOptions } from './lock-manager.js';
+export {
+  TabcoordError,
+  StoreDestroyedError,
+  LockTimeoutError,
+  LockManagerDestroyedError,
+  BootstrapTimeoutError,
+} from './errors.js';

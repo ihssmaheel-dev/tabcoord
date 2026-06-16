@@ -1,9 +1,12 @@
-# @tabcoord
+# tabcoord
 
 **Sync state across browser tabs. One line of code.**
 
+[![npm version](https://img.shields.io/npm/v/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
+[![license](https://img.shields.io/npm/l/tabcoord.svg)](https://www.npmjs.com/package/tabcoord)
+
 ```typescript
-import { createSharedStore } from '@tabcoord/core';
+import { createSharedStore } from 'tabcoord';
 
 const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
 // Now any tab can read/write cart, and they all stay in sync.
@@ -36,14 +39,14 @@ When you open the same app in two browser tabs, they don't know about each other
 ### 1. Install
 
 ```bash
-npm install @tabcoord/core @tabcoord/react
+npm install tabcoord tabcoord-react
 ```
 
 ### 2. Create a shared store
 
 ```typescript
 // store.ts
-import { createSharedStore } from '@tabcoord/core';
+import { createSharedStore } from 'tabcoord';
 
 export const cart = createSharedStore({
   name: 'cart',
@@ -55,7 +58,7 @@ export const cart = createSharedStore({
 
 ```tsx
 // Cart.tsx
-import { useSharedStore } from '@tabcoord/react';
+import { useSharedStore } from 'tabcoord-react';
 import { cart } from './store';
 
 export function Cart() {
@@ -101,6 +104,8 @@ const count = useSharedStore(store, s => s.count);
 One tab becomes the "leader" — useful for background tasks like polling or syncing.
 
 ```typescript
+import { leaderElection } from 'tabcoord';
+
 const election = leaderElection('my-leader');
 
 election.onElected(() => {
@@ -119,6 +124,8 @@ election.onDemoted(() => {
 Prevent two tabs from doing the same thing at the same time.
 
 ```typescript
+import { lockManager } from 'tabcoord';
+
 const lock = lockManager('my-lock');
 
 await lock.acquire(async () => {
@@ -132,6 +139,8 @@ await lock.acquire(async () => {
 Send events between tabs with wildcard matching.
 
 ```typescript
+import { eventBus } from 'tabcoord';
+
 const bus = eventBus('my-events');
 
 // Tab A
@@ -174,7 +183,7 @@ No server needed. No WebSocket. Just browser tabs talking to each other.
 
 The browser's built-in API for tab messaging.
 
-| Feature | TabCoord | Native BroadcastChannel |
+| Feature | tabcoord | Native BroadcastChannel |
 |---------|----------|------------------------|
 | State sync | ✅ Built-in | ❌ Manual |
 | Persistence | ✅ Automatic | ❌ Manual |
@@ -184,14 +193,14 @@ The browser's built-in API for tab messaging.
 | SSR support | ✅ Noop stores | ❌ Browser only |
 | Bundle size | 4.78 KB | 0 KB |
 
-**Use TabCoord when** you need state management, leader election, or locks.  
+**Use tabcoord when** you need state management, leader election, or locks.  
 **Use native BroadcastChannel when** you just need simple message passing.
 
 ### vs `broadcast-channel` (pubkey, 2k stars, 3M+ weekly downloads)
 
 A BroadcastChannel polyfill with leader election.
 
-| Feature | TabCoord | broadcast-channel |
+| Feature | tabcoord | broadcast-channel |
 |---------|----------|-------------------|
 | State sync | ✅ Built-in | ❌ Manual |
 | Persistence | ✅ Automatic | ❌ Manual |
@@ -202,14 +211,14 @@ A BroadcastChannel polyfill with leader election.
 | Bundle size | 4.78 KB | 8.2 KB |
 | Dependencies | 0 | 4 |
 
-**Use TabCoord when** you need the full coordination layer.  
+**Use tabcoord when** you need the full coordination layer.  
 **Use broadcast-channel when** you need a polyfill for old browsers or Node.js IPC.
 
 ### vs `channel-state`
 
 A lightweight cross-tab state sync library.
 
-| Feature | TabCoord | channel-state |
+| Feature | tabcoord | channel-state |
 |---------|----------|---------------|
 | State sync | ✅ | ✅ |
 | Leader election | ✅ | ❌ |
@@ -219,12 +228,12 @@ A lightweight cross-tab state sync library.
 | SSR support | ✅ | ❌ |
 | Active maintenance | ✅ | ⚠️ Low activity |
 
-**Use TabCoord when** you need more than just state sync.  
+**Use tabcoord when** you need more than just state sync.  
 **Use channel-state when** you only need basic cross-tab state.
 
 ### vs WebSocket / Server-based solutions
 
-| Feature | TabCoord | WebSocket |
+| Feature | tabcoord | WebSocket |
 |---------|----------|-----------|
 | Setup | Zero config | Server required |
 | Latency | <5ms | 50-200ms |
@@ -232,7 +241,7 @@ A lightweight cross-tab state sync library.
 | Offline | ✅ Works offline | ❌ Needs server |
 | Scalability | Limited to browser tabs | Unlimited |
 
-**Use TabCoord when** it's one person's tabs on one machine.  
+**Use tabcoord when** it's one person's tabs on one machine.  
 **Use WebSocket when** you need multi-user collaboration.
 
 ---
@@ -258,8 +267,8 @@ A lightweight cross-tab state sync library.
 
 | Package | Gzipped | Dependencies |
 |---------|---------|--------------|
-| @tabcoord/core | 4.78 KB | 0 |
-| @tabcoord/react | 0.9 KB | @tabcoord/core, react |
+| tabcoord | 4.78 KB | 0 |
+| tabcoord-react | 0.9 KB | tabcoord, react |
 
 ---
 

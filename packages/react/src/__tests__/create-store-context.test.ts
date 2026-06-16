@@ -17,7 +17,7 @@ const mockStore = {
   get status() { return 'synced' as const; },
 };
 
-vi.mock('@tabcoord/core', () => ({
+vi.mock('tabcoord', () => ({
   createSharedStore: vi.fn(() => mockStore),
   createContext: vi.fn(),
 }));

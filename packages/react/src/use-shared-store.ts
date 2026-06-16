@@ -1,4 +1,4 @@
-﻿import { useSyncExternalStore, useRef, useCallback, useMemo } from 'react';
+import { useSyncExternalStore, useRef, useCallback, useMemo } from 'react';
 import type { SharedStoreHandle } from 'tabcoord';
 
 export function useSharedStore<T, R>(
@@ -13,14 +13,19 @@ export function useSharedStore<T, R>(
     [store],
   );
 
-  // Use useMemo for getSnapshot to avoid stale closure in concurrent mode
   const getSnapshot = useMemo(
-    () => () => selectorRef.current(store.get()),
+    () => () => {
+      const state = store.get();
+      return state !== undefined ? selectorRef.current(state) : selectorRef.current(state as T);
+    },
     [store],
   );
 
   const getServerSnapshot = useCallback(
-    () => selectorRef.current(store.get()),
+    () => {
+      const state = store.get();
+      return state !== undefined ? selectorRef.current(state) : selectorRef.current(state as T);
+    },
     [store],
   );
 

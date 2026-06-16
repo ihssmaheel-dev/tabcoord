@@ -2,6 +2,16 @@ import type { PersistConfig } from './persist.js';
 import { rehydrateState } from './persist.js';
 
 const _factoryCache = new Map<string, unknown>();
+const MAX_FACTORY_CACHE = 100;
+
+function cacheSet(key: string, value: unknown): void {
+  if (_factoryCache.size >= MAX_FACTORY_CACHE && !_factoryCache.has(key)) {
+    // Evict oldest entry (first key in insertion order)
+    const first = _factoryCache.keys().next().value;
+    if (first !== undefined) _factoryCache.delete(first);
+  }
+  _factoryCache.set(key, value);
+}
 
 export function resolveInitial<T>(
   name: string,
@@ -17,7 +27,7 @@ export function resolveInitial<T>(
       const result = persistConfig.onRehydrate
         ? persistConfig.onRehydrate(stored.state, stored.clock)
         : stored.state;
-      _factoryCache.set(name, result);
+      cacheSet(name, result);
       return result;
     }
   }
@@ -31,7 +41,7 @@ export function resolveInitial<T>(
   const result = typeof initial === 'function' ? (initial as () => T)() : initial;
   // Only cache factory results — static values should always be fresh copies
   if (typeof initial === 'function') {
-    _factoryCache.set(name, result);
+    cacheSet(name, result);
   }
   return result;
 }

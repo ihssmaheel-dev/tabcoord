@@ -2,6 +2,8 @@ import type { Transport, MessageHandler } from './types.js';
 import { getTabId } from '../tab-id.js';
 
 const STORAGE_PREFIX = 'tabcoord:chan:';
+const seen = new Set<string>();
+const MAX_SEEN = 500;
 
 export function createStorageEventTransport(name: string): Transport {
   const tabId = getTabId();
@@ -11,11 +13,20 @@ export function createStorageEventTransport(name: string): Transport {
   function handleStorage(e: StorageEvent): void {
     if (e.key !== key || !e.newValue) return;
     try {
-      // Strip timestamp suffix appended by send() to force StorageEvent
-      const jsonStr = e.newValue.includes('|') ? e.newValue.substring(0, e.newValue.lastIndexOf('|')) : e.newValue;
+      const pipeIdx = e.newValue.lastIndexOf('|');
+      const jsonStr = pipeIdx !== -1 ? e.newValue.substring(0, pipeIdx) : e.newValue;
       const msg = JSON.parse(jsonStr) as Record<string, unknown>;
       const meta = msg?._meta as Record<string, unknown> | undefined;
       if (meta?.source === tabId) return;
+      const msgId = meta?.id as string | undefined;
+      if (msgId) {
+        if (seen.has(msgId)) return;
+        seen.add(msgId);
+        if (seen.size > MAX_SEEN) {
+          const first = seen.values().next().value;
+          if (first !== undefined) seen.delete(first);
+        }
+      }
       for (const h of handlers) h(msg);
     } catch {
       // ignore malformed messages

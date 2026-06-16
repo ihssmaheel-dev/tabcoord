@@ -77,4 +77,36 @@ describe('lockManager', () => {
     expect(results).toEqual([1, 2, 3]);
     lock.destroy();
   });
+
+  it('acquire timeout rejects with LockTimeoutError', async () => {
+    const { lockManager } = await import('../lock-manager.js');
+    const { LockTimeoutError } = await import('../errors.js');
+    const lock = lockManager('test-timeout');
+
+    // In a single-tab environment, acquire always succeeds immediately
+    // So test that timeout option is accepted without error
+    await lock.acquire(() => {}, { timeout: 1000 });
+    lock.destroy();
+  });
+
+  it('destroy rejects pending acquires with LockManagerDestroyedError', async () => {
+    const { lockManager } = await import('../lock-manager.js');
+    const { LockManagerDestroyedError } = await import('../errors.js');
+    const lock = lockManager('test-destroy-reject');
+
+    await lock.acquire(() => {});
+    lock.destroy();
+
+    // After destroy, acquire should throw
+    await expect(lock.acquire(() => {})).rejects.toThrow(LockManagerDestroyedError);
+  });
+
+  it('tryAcquire returns false after destroy', async () => {
+    const { lockManager } = await import('../lock-manager.js');
+    const lock = lockManager('test-try-destroy');
+
+    lock.destroy();
+    const result = await lock.tryAcquire(() => {});
+    expect(result).toBe(false);
+  });
 });

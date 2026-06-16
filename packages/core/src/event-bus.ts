@@ -126,6 +126,10 @@ export function eventBus(name: string, options?: EventBusOptions): EventBus {
 
       transport.send(event);
 
+      // Add to replay buffer for late subscribers
+      replayBuffer.push(event);
+      if (replayBuffer.length > MAX_REPLAY) replayBuffer.shift();
+
       // Also invoke local handlers directly — transport filters self-messages
       for (const entry of handlers) {
         if (entry.isWildcard && entry.regex?.test(event.type)) {

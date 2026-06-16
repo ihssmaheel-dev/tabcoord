@@ -2,10 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('InternalStore', () => {
   let mockTransport: ReturnType<typeof createMockTransport>;
+  let messageHandlers: Map<string, Array<(msg: unknown) => void>>;
 
   function createMockTransport() {
+    messageHandlers = new Map();
     return {
-      onMessage: vi.fn(() => vi.fn()),
+      onMessage: vi.fn((handler: (data: unknown) => void) => {
+        // Capture the handler so we can simulate incoming messages
+        const type = 'default';
+        if (!messageHandlers.has(type)) messageHandlers.set(type, []);
+        messageHandlers.get(type)!.push(handler);
+        return vi.fn(); // unsubscribe
+      }),
       send: vi.fn(),
       destroy: vi.fn(),
       isAvailable: vi.fn(() => true),
@@ -29,7 +37,6 @@ describe('InternalStore', () => {
 
     expect(store.status).toBe('bootstrap');
 
-    // Advance past jitter + bootstrap timeout
     vi.advanceTimersByTime(750);
     expect(store.status).toBe('synced');
 
@@ -43,7 +50,6 @@ describe('InternalStore', () => {
     store.set({ count: 1 });
     store.set((prev: { count: number }) => ({ count: prev.count + 1 }));
 
-    // Advance past jitter + bootstrap timeout
     vi.advanceTimersByTime(750);
 
     expect(store.status).toBe('synced');
@@ -55,7 +61,7 @@ describe('InternalStore', () => {
     const { InternalStore } = await import('../internal-store.js');
     const store = new InternalStore({ count: 0 }, mockTransport);
 
-    vi.advanceTimersByTime(750); // complete bootstrap
+    vi.advanceTimersByTime(750);
 
     const fn = vi.fn();
     store.subscribe(fn);
@@ -103,7 +109,6 @@ describe('InternalStore', () => {
     const store = new InternalStore({ count: 0 }, mockTransport);
     store.destroy();
     vi.advanceTimersByTime(1000);
-    // After destroy, bootstrap timers should be cleared
     expect(store.status).toBe('bootstrap');
   });
 
@@ -116,8 +121,6 @@ describe('InternalStore', () => {
     store.subscribe(fn);
     store.destroy();
 
-    // Subscribers cleared — set should not notify
-    // (destroyed store skips set anyway)
     expect(fn).not.toHaveBeenCalled();
   });
 
@@ -130,7 +133,7 @@ describe('InternalStore', () => {
     store.destroy();
     store.set({ count: 999 });
 
-    expect(store.get()).toEqual({ count: 0 }); // unchanged
+    expect(store.get()).toEqual({ count: 0 });
     expect(onError).toHaveBeenCalled();
   });
 
@@ -143,6 +146,50 @@ describe('InternalStore', () => {
     expect(store.get()).toEqual({ count: 42 });
 
     store.destroy();
-    expect(store.get()).toEqual({ count: 42 }); // still accessible
+    expect(store.get()).toEqual({ count: 42 });
+  });
+
+  it('onError callback fires when subscriber throws', async () => {
+    const onError = vi.fn();
+    const { InternalStore } = await import('../internal-store.js');
+    const store = new InternalStore({ count: 0 }, mockTransport, onError);
+    vi.advanceTimersByTime(750);
+
+    store.subscribe(() => { throw new Error('subscriber crash'); });
+    store.set({ count: 1 });
+
+    expect(onError).toHaveBeenCalled();
+    expect(onError.mock.calls[0][0].message).toBe('subscriber crash');
+    store.destroy();
+  });
+
+  it('shallow equality check prevents unnecessary notifications', async () => {
+    const { InternalStore } = await import('../internal-store.js');
+    const store = new InternalStore({ count: 0 }, mockTransport);
+    vi.advanceTimersByTime(750);
+
+    const fn = vi.fn();
+    store.subscribe(fn);
+
+    // Set same value — should not notify
+    store.set({ count: 0 });
+    expect(fn).not.toHaveBeenCalled();
+
+    // Set different value — should notify
+    store.set({ count: 1 });
+    expect(fn).toHaveBeenCalledTimes(1);
+    store.destroy();
+  });
+
+  it('getClock returns current clock', async () => {
+    const { InternalStore } = await import('../internal-store.js');
+    const store = new InternalStore({ count: 0 }, mockTransport);
+
+    const clock = store.getClock();
+    expect(clock).toHaveProperty('counter');
+    expect(clock).toHaveProperty('tabId');
+    expect(typeof clock.counter).toBe('number');
+    expect(typeof clock.tabId).toBe('string');
+    store.destroy();
   });
 });

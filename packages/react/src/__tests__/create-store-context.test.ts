@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { createElement } from 'react';
 
@@ -54,7 +54,7 @@ describe('createStoreContext', () => {
     expect(result.current.get()).toEqual({ count: 0 });
   });
 
-  it('exposes store directly', () => {
+  it('exposes store directly via getter', () => {
     const { store } = createStoreContext({
       name: 'test-ctx-direct',
       initial: { value: 'hello' },
@@ -79,5 +79,33 @@ describe('createStoreContext', () => {
     act(() => { result.current.set({ count: 5 }); });
 
     expect(result.current.get().count).toBe(5);
+  });
+
+  it('useStore throws when used outside Provider', () => {
+    const { useStore } = createStoreContext({
+      name: 'test-ctx-throw',
+      initial: { count: 0 },
+    });
+
+    expect(() => {
+      renderHook(() => useStore());
+    }).toThrow('useStore must be used within a Provider');
+  });
+
+  it('Provider destroys store on unmount', () => {
+    const destroySpy = vi.spyOn(mockStore, 'destroy');
+
+    const { Provider, useStore } = createStoreContext({
+      name: 'test-ctx-destroy',
+      initial: { count: 0 },
+    });
+
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      createElement(Provider, null, children);
+
+    const { unmount } = renderHook(() => useStore(), { wrapper });
+
+    unmount();
+    expect(destroySpy).toHaveBeenCalled();
   });
 });

@@ -5,6 +5,11 @@ import type { EventBus, BusEvent } from 'tabcoord';
 
 function createMockBus(): EventBus & { _emit: (type: string, payload?: unknown) => void } {
   const handlers: Array<{ pattern: string; handler: (event: BusEvent) => void }> = [];
+  function matches(pattern: string, type: string): boolean {
+    if (pattern === '*') return true;
+    if (pattern.endsWith(':*')) return type.startsWith(pattern.slice(0, -1));
+    return pattern === type;
+  }
   return {
     _emit(type: string, payload?: unknown) {
       const event: BusEvent = {
@@ -13,7 +18,7 @@ function createMockBus(): EventBus & { _emit: (type: string, payload?: unknown) 
         _meta: { id: '1', type, source: 'other-tab', timestamp: Date.now() },
       };
       for (const entry of handlers) {
-        if (entry.pattern === type || entry.pattern === '*') {
+        if (matches(entry.pattern, event.type)) {
           entry.handler(event);
         }
       }
@@ -88,5 +93,21 @@ describe('useSharedEvent', () => {
     act(() => { bus._emit('test:event'); });
     expect(handler2).toHaveBeenCalledTimes(1);
     expect(handler1).toHaveBeenCalledTimes(1); // still only called once
+  });
+
+  it('handles wildcard patterns', () => {
+    const bus = createMockBus();
+    const handler = vi.fn();
+
+    renderHook(() => useSharedEvent(bus, 'user:*', handler));
+
+    act(() => { bus._emit('user:login', { id: 1 }); });
+    expect(handler).toHaveBeenCalledTimes(1);
+
+    act(() => { bus._emit('user:logout', { id: 1 }); });
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    act(() => { bus._emit('cart:add'); });
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 });

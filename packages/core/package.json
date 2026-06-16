@@ -12,12 +12,14 @@
       "types": "./dist/index.d.ts",
       "browser": "./dist/index.js",
       "import": "./dist/index.js",
+      "require": "./dist/cjs/index.js",
       "default": "./dist/index.js"
     },
     "./diff": {
       "types": "./dist/diff-standalone.d.ts",
       "browser": "./dist/diff-standalone.js",
       "import": "./dist/diff-standalone.js",
+      "require": "./dist/cjs/diff-standalone.js",
       "default": "./dist/diff-standalone.js"
     },
     "./package.json": "./package.json"
@@ -36,7 +38,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.cjs.json",
     "test": "vitest run",
     "lint": "echo ok",
     "typecheck": "tsc --noEmit",

@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "@tabcoord/demo-ssr-smoke",
   "version": "0.0.0",
   "private": true,
@@ -8,6 +8,6 @@
     "test": "node --experimental-vm-modules smoke.mjs"
   },
   "dependencies": {
-    "tabcoord": "workspace:*"
+    "@tabcoord/core": "workspace:*"
   }
 }

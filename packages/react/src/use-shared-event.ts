@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+﻿import { useEffect, useRef, useCallback } from 'react';
 import type { EventBus, BusEvent } from '@tabcoord/core';
 
 export function useSharedEvent(

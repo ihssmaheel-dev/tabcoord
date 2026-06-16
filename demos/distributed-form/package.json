@@ -1,5 +1,5 @@
-﻿{
-  "name": "@tabcoord/demo-distributed-form",
+{
+  "name": "demo-distributed-form",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "tabcoord": "workspace:*",
-    "tabcoord-react": "workspace:*",
+    "@tabcoord/core": "workspace:*",
+    "@tabcoord/react": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

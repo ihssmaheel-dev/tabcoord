@@ -1,4 +1,4 @@
-import { useSharedStore } from '@tabcoord/react';
+﻿import { useSharedStore } from '@tabcoord/react';
 import store, { login, logout } from './store';
 
 export default function Auth() {

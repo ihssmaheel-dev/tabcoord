@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useRef, useCallback, useMemo } from 'react';
+﻿import { useSyncExternalStore, useRef, useCallback, useMemo } from 'react';
 import type { SharedStoreHandle } from '@tabcoord/core';
 
 export function useSharedStore<T, R>(

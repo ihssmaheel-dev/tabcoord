@@ -1,4 +1,4 @@
-import { createSharedStore, leaderElection } from '@tabcoord/core';
+﻿import { createSharedStore, leaderElection } from '@tabcoord/core';
 
 export interface SyncState {
   lastFetch: string | null;
@@ -22,7 +22,7 @@ export function startPolling(): void {
   if (pollTimer) return;
 
   election.onElected(() => {
-    console.log('This tab is now the leader — starting poll');
+    console.log('This tab is now the leader â€” starting poll');
     pollTimer = setInterval(() => {
       // Mock API call
       const now = new Date().toLocaleTimeString();
@@ -35,7 +35,7 @@ export function startPolling(): void {
   });
 
   election.onDemoted(() => {
-    console.log('This tab lost leadership — stopping poll');
+    console.log('This tab lost leadership â€” stopping poll');
     if (pollTimer) {
       clearInterval(pollTimer);
       pollTimer = null;
@@ -48,5 +48,5 @@ export function stopPolling(): void {
     clearInterval(pollTimer);
     pollTimer = null;
   }
-  // Don't destroy election here — it's module-scope and should persist
+  // Don't destroy election here â€” it's module-scope and should persist
 }

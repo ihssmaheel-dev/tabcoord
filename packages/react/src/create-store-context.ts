@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, type ReactNode, createElement } from 'react';
+﻿import { createContext, useContext, useEffect, type ReactNode, createElement } from 'react';
 import { createSharedStore, type SharedStoreHandle, type CreateSharedStoreOptions } from '@tabcoord/core';
 
 export function createStoreContext<T>(options: CreateSharedStoreOptions<T>) {

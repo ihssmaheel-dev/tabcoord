@@ -1,4 +1,4 @@
-import { useSharedStore } from '@tabcoord/react';
+﻿import { useSharedStore } from '@tabcoord/react';
 import { formStore, type FormState } from './store';
 
 function Field({ label, field }: { label: string; field: keyof FormState }) {
@@ -29,9 +29,9 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: 16 }}>
-      <h1>📝 Distributed Form</h1>
+      <h1>ðŸ“ Distributed Form</h1>
       <p style={{ color: '#64748b' }}>
-        Edit different fields in different tabs — field-level merge preserves concurrent edits.
+        Edit different fields in different tabs â€” field-level merge preserves concurrent edits.
       </p>
 
       <div style={{ background: '#f8fafc', borderRadius: 8, padding: 16, marginBottom: 16 }}>

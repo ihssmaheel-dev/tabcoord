@@ -1,4 +1,4 @@
-import { useSharedStore } from '@tabcoord/react';
+﻿import { useSharedStore } from '@tabcoord/react';
 import { syncStore, election, startPolling, stopPolling } from './store';
 import { useEffect, useState } from 'react';
 
@@ -35,7 +35,7 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: 16 }}>
-      <h1>🔄 Background Sync</h1>
+      <h1>ðŸ”„ Background Sync</h1>
       <p style={{ color: '#64748b' }}>
         Only the leader tab polls. Open multiple tabs to see leader election.
       </p>

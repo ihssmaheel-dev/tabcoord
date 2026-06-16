@@ -26,15 +26,15 @@ importers:
 
   demos/auth-sync:
     dependencies:
-      '@tabcoord/react':
-        specifier: workspace:*
-        version: link:../../packages/react
       react:
         specifier: ^19.0.0
         version: 19.2.7
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      tabcoord-react:
+        specifier: workspace:*
+        version: link:../../packages/react
     devDependencies:
       '@types/react':
         specifier: ^19.0.0
@@ -54,18 +54,18 @@ importers:
 
   demos/background-sync:
     dependencies:
-      '@tabcoord/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@tabcoord/react':
-        specifier: workspace:*
-        version: link:../../packages/react
       react:
         specifier: ^19.0.0
         version: 19.2.7
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      tabcoord:
+        specifier: workspace:*
+        version: link:../../packages/core
+      tabcoord-react:
+        specifier: workspace:*
+        version: link:../../packages/react
     devDependencies:
       '@types/react':
         specifier: ^19.0.0
@@ -85,18 +85,18 @@ importers:
 
   demos/distributed-form:
     dependencies:
-      '@tabcoord/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@tabcoord/react':
-        specifier: workspace:*
-        version: link:../../packages/react
       react:
         specifier: ^19.0.0
         version: 19.2.7
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      tabcoord:
+        specifier: workspace:*
+        version: link:../../packages/core
+      tabcoord-react:
+        specifier: workspace:*
+        version: link:../../packages/react
     devDependencies:
       '@types/react':
         specifier: ^19.0.0
@@ -116,15 +116,15 @@ importers:
 
   demos/shared-cart:
     dependencies:
-      '@tabcoord/react':
-        specifier: workspace:*
-        version: link:../../packages/react
       react:
         specifier: ^19.0.0
         version: 19.2.7
       react-dom:
         specifier: ^19.0.0
         version: 19.2.7(react@19.2.7)
+      tabcoord-react:
+        specifier: workspace:*
+        version: link:../../packages/react
     devDependencies:
       '@types/react':
         specifier: ^19.0.0
@@ -144,7 +144,7 @@ importers:
 
   demos/ssr-smoke:
     dependencies:
-      '@tabcoord/core':
+      tabcoord:
         specifier: workspace:*
         version: link:../../packages/core
 
@@ -168,9 +168,6 @@ importers:
 
   packages/react:
     devDependencies:
-      '@tabcoord/core':
-        specifier: workspace:*
-        version: link:../core
       '@testing-library/react':
         specifier: ^16.0.0
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -183,6 +180,9 @@ importers:
       react:
         specifier: ^19.0.0
         version: 19.2.7
+      tabcoord:
+        specifier: workspace:*
+        version: link:../core
       vitest:
         specifier: ^3.0.0
         version: 3.2.6(jiti@2.7.0)(jsdom@29.1.1)

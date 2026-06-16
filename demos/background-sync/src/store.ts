@@ -1,4 +1,4 @@
-﻿import { createSharedStore, leaderElection } from '@tabcoord/core';
+﻿import { createSharedStore, leaderElection } from 'tabcoord';
 
 export interface SyncState {
   lastFetch: string | null;

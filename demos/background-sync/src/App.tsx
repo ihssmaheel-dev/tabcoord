@@ -1,4 +1,4 @@
-﻿import { useSharedStore } from '@tabcoord/react';
+﻿import { useSharedStore } from 'tabcoord-react';
 import { syncStore, election, startPolling, stopPolling } from './store';
 import { useEffect, useState } from 'react';
 

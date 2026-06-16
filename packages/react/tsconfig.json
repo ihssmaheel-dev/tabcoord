@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "tabcoord": ["../core/src/index.ts"]
+    }
   },
   "include": ["src"],
   "exclude": ["src/__tests__"],

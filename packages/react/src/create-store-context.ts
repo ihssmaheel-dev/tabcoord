@@ -1,5 +1,5 @@
 ﻿import { createContext, useContext, useEffect, type ReactNode, createElement } from 'react';
-import { createSharedStore, type SharedStoreHandle, type CreateSharedStoreOptions } from '@tabcoord/core';
+import { createSharedStore, type SharedStoreHandle, type CreateSharedStoreOptions } from 'tabcoord';
 
 export function createStoreContext<T>(options: CreateSharedStoreOptions<T>) {
   const store = createSharedStore(options);

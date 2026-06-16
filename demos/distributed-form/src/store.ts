@@ -1,4 +1,4 @@
-﻿import { createSharedStore } from '@tabcoord/core';
+﻿import { createSharedStore } from 'tabcoord';
 
 export interface FormState {
   name: string;

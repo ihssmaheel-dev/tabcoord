@@ -1,4 +1,4 @@
-﻿import { useSharedStore } from '@tabcoord/react';
+﻿import { useSharedStore } from 'tabcoord-react';
 import store, { removeItem, updateQuantity, type CartItem } from './store';
 
 function CartItemRow({ item }: { item: CartItem }) {

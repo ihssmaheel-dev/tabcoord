@@ -1,4 +1,4 @@
-﻿import { useSharedStore } from '@tabcoord/react';
+﻿import { useSharedStore } from 'tabcoord-react';
 import { formStore, type FormState } from './store';
 
 function Field({ label, field }: { label: string; field: keyof FormState }) {

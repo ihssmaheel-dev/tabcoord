@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@tabcoord/demo-shared-cart",
   "version": "0.0.0",
   "private": true,
@@ -21,3 +21,4 @@
     "vite": "^6.0.0"
   }
 }
+

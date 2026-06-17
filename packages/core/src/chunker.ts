@@ -42,7 +42,7 @@ function estimateSize(data: unknown): number {
   return 16; // fallback for functions, symbols, etc.
 }
 
-/*@__PURE__*/ export function chunk(
+export /*@__PURE__*/ function chunk(
   data: unknown,
   _clock?: Clock,
   threshold: number = DEFAULT_THRESHOLD,

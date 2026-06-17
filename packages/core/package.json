@@ -1,6 +1,6 @@
 {
   "name": "tabcoord",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Multi-tab coordination layer — shared state, leader election, distributed locks, event bus",
   "type": "module",
   "sideEffects": false,

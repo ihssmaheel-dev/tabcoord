@@ -2,7 +2,7 @@ import type { InternalStoreInterface } from './internal-store-interface.js';
 import type { Transport } from './transport/types.js';
 import { MessageBus, type WireMessage } from './message-bus.js';
 import type { Clock } from './clock.js';
-import { tick, compare, serialize, deserialize } from './clock.js';
+import { tick, compare, serialize, deserialize, advanceCounter } from './clock.js';
 import { getTabId } from './tab-id.js';
 import { persistState } from './persist.js';
 import { apply, isPatch, type Patch } from './diff.js';
@@ -89,6 +89,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
       this.state = payload.state;
       this.clock = incomingClock;
+      advanceCounter(incomingClock.counter);
       this._bootstrapResponses++;
 
       // Replay queued writes and pending patches on top of received state
@@ -130,6 +131,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       }
 
       this.clock = incomingClock;
+      advanceCounter(incomingClock.counter);
       if (this.storeName && this.persistPrefix) {
         persistState(this.storeName, this.state, serialize(this.clock), this.persistPrefix);
       }

@@ -8,7 +8,7 @@ export { NoopInternalStore } from './noop-internal-store.js';
 export { MessageBus, stripReservedKeys, resetMsgId } from './message-bus.js';
 export type { MessageType, WireMessage, MessageMeta } from './message-bus.js';
 export { getTabId, resetTabId } from './tab-id.js';
-export { tick, compare, serialize, deserialize, resetCounter } from './clock.js';
+export { tick, compare, serialize, deserialize, resetCounter, advanceCounter } from './clock.js';
 export type { Clock } from './clock.js';
 
 // Bind clock reset to tab-id so resetTabId() also resets the counter

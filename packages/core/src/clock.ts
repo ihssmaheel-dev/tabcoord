@@ -15,6 +15,15 @@ export function resetCounter(): void {
   _counter = 0;
 }
 
+/**
+ * Bump the local counter to be at least `min`.
+ * Called when accepting an external clock so that subsequent tick()
+ * produces a counter higher than the accepted clock.
+ */
+export function advanceCounter(min: number): void {
+  if (_counter < min) _counter = min;
+}
+
 export function compare(a: Clock, b: Clock): number {
   const diff = a.counter - b.counter;
   if (diff !== 0) return diff;

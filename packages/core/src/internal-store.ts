@@ -82,9 +82,10 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
       const payload = msg.payload as { state: T; clock: string };
       if (payload.state === undefined) return;
       const incomingClock = deserialize(payload.clock);
-      // Accept if incoming clock is strictly higher (more recent state)
+      // Accept if incoming clock is same or higher (first responder wins)
+      // Previously rejected equal clocks, preventing sync when both tabs start fresh
       const cmp = compare(incomingClock, this.clock);
-      if (cmp <= 0) return; // reject stale or equal state (first responder wins)
+      if (cmp < 0) return; // reject only stale state
 
       this.state = payload.state;
       this.clock = incomingClock;
@@ -116,7 +117,7 @@ export class InternalStore<T> implements InternalStoreInterface<T> {
 
       const cmp = compare(incomingClock, this.clock);
       if (cmp < 0) return; // reject stale state
-      if (cmp === 0) return; // reject same clock (prevents echo loops)
+      // Transport layer already filters self-messages, no need for cmp === 0 check
 
       // Apply patch (diff) or full state replacement
       if (isPatch(payload.state)) {

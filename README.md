@@ -19,7 +19,17 @@ cart.set({ items: ['Widget'] });
 
 ## What It Does
 
-Open your app in two browser tabs. Change something in one tab — it appears in the other instantly. No server. No WebSocket. Just browser tabs talking to each other through `BroadcastChannel` (with `localStorage` fallback).
+Open your app in two browser tabs. Change something in one tab — it appears in the other instantly. No server. No WebSocket. Just browser tabs talking to each other.
+
+## Install
+
+```bash
+# React projects — one install, everything included
+npm install tabcoord-react
+
+# Vanilla JS / Node.js
+npm install tabcoord
+```
 
 ## Features
 
@@ -32,12 +42,6 @@ Open your app in two browser tabs. Change something in one tab — it appears in
 | **Persistence** | State survives page reload via localStorage |
 | **SSR Support** | Works in Next.js, Remix, Nuxt — noop stores on server |
 
-## Install
-
-```bash
-npm install tabcoord
-```
-
 ## Quick Start
 
 ```typescript
@@ -48,33 +52,20 @@ const store = createSharedStore({
   initial: { count: 0 },
 });
 
-// Read
-store.get(); // { count: 0 }
-
-// Write (syncs to all tabs)
-store.set({ count: 1 });
-
-// Update with a function
-store.set(s => ({ count: s.count + 1 }));
-
-// Subscribe to changes
-const unsubscribe = store.subscribe((state) => {
-  console.log(state);
-});
-
-// Clean up
+store.set({ count: 1 });                        // syncs to all tabs
+store.set(s => ({ count: s.count + 1 }));       // updater function
+const unsub = store.subscribe((s) => console.log(s));
 store.destroy();
 ```
 
-## React Integration
+## React (single install)
 
 ```bash
 npm install tabcoord-react
 ```
 
 ```tsx
-import { createSharedStore } from 'tabcoord';
-import { useSharedStore } from 'tabcoord-react';
+import { createSharedStore, useSharedStore } from 'tabcoord-react';
 
 const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
 
@@ -88,7 +79,16 @@ function Cart() {
 }
 ```
 
-See [packages/react/README.md](packages/react/README.md) for full React API docs.
+All core APIs are re-exported from `tabcoord-react`:
+
+```tsx
+import {
+  // React hooks
+  useSharedStore, useSharedEvent, createStoreContext,
+  // Core APIs
+  createSharedStore, eventBus, leaderElection, lockManager,
+} from 'tabcoord-react';
+```
 
 ## Leader Election
 
@@ -97,18 +97,9 @@ import { leaderElection } from 'tabcoord';
 
 const election = leaderElection('my-app');
 
-election.onElected(() => {
-  console.log('This tab is the leader');
-  startBackgroundSync();
-});
-
-election.onDemoted(() => {
-  console.log('Lost leadership');
-  stopBackgroundSync();
-});
+election.onElected(() => { /* leader */ });
+election.onDemoted(() => { /* follower */ });
 ```
-
-Uses Web Locks API when available, falls back to heartbeat-based election.
 
 ## Lock Manager
 
@@ -117,14 +108,8 @@ import { lockManager } from 'tabcoord';
 
 const lock = lockManager('data-write');
 
-// Only one tab runs this at a time
 await lock.acquire(async () => {
   await writeCriticalData();
-});
-
-// Non-blocking check
-const acquired = await lock.tryAcquire(async () => {
-  await doWork();
 });
 ```
 
@@ -135,21 +120,10 @@ import { eventBus } from 'tabcoord';
 
 const bus = eventBus('user-events');
 
-// Emit
 bus.emit('user:login', { userId: 123 });
-
-// Listen with wildcard
-bus.on('user:*', (event) => {
-  console.log(event.type, event.payload);
-});
-
-// Listen to all events
-bus.on('*', (event) => {
-  console.log('Any event:', event.type);
-});
+bus.on('user:*', (event) => console.log(event.type, event.payload));
+bus.on('*', (event) => console.log('Any event:', event.type));
 ```
-
-Local subscribers receive their own emitted events. Cross-tab delivery is automatic.
 
 ## Persistence
 
@@ -157,42 +131,16 @@ Local subscribers receive their own emitted events. Cross-tab delivery is automa
 const store = createSharedStore({
   name: 'cart',
   initial: { items: [] },
-  persist: {
-    version: 1,
-    prefix: 'myapp',       // optional, default: 'tabcoord'
-    onRehydrate: (state, clock) => state,  // optional migration hook
-  },
+  persist: { version: 1 },
 });
 ```
 
-## Error Handling
-
-```typescript
-import { createSharedStore } from 'tabcoord';
-import { StoreDestroyedError, LockTimeoutError } from 'tabcoord';
-
-const store = createSharedStore({ name: 'app', initial: {} });
-store.destroy();
-
-// Typed errors for different failure modes
-try {
-  store.set({ data: 1 });
-} catch (err) {
-  if (err instanceof StoreDestroyedError) {
-    // Store was destroyed
-  }
-}
-```
-
-Available error classes: `TabcoordError`, `StoreDestroyedError`, `LockTimeoutError`, `LockManagerDestroyedError`, `BootstrapTimeoutError`.
-
 ## How It Works
 
-1. **Same origin only** — tabs must be on the same website
-2. **BroadcastChannel** — uses the browser's built-in tab messaging, falls back to localStorage
-3. **Logical clock** — each write gets a counter + tab ID for deterministic conflict resolution
-4. **Bootstrap handshake** — new tabs ask existing tabs for current state on load
-5. **Deterministic leader election** — lowest tab ID wins when multiple tabs race
+1. **BroadcastChannel** with localStorage fallback
+2. **Logical clock** for deterministic conflict resolution
+3. **Bootstrap handshake** — new tabs request state from existing tabs
+4. **Deterministic leader election** — lowest tab ID wins ties
 
 ## Browser Support
 
@@ -208,7 +156,7 @@ Available error classes: `TabcoordError`, `StoreDestroyedError`, `LockTimeoutErr
 
 | Package | Gzipped | Dependencies |
 |---------|---------|--------------|
-| `tabcoord` | ~5 KB | 0 |
+| `tabcoord` | ~6 KB | 0 |
 | `tabcoord-react` | ~1 KB | `tabcoord`, `react` |
 
 ## When NOT to Use

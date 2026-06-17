@@ -1,105 +1,100 @@
 # tabcoord-react
 
-**React hooks for cross-tab state synchronization.**
+**Cross-tab state sync, leader election, locks, and event bus — one install, React hooks included.**
 
 [![npm version](https://img.shields.io/npm/v/tabcoord-react.svg)](https://www.npmjs.com/package/tabcoord-react)
 
 ## Install
 
 ```bash
-npm install tabcoord-react tabcoord
+npm install tabcoord-react
 ```
 
-Requires React 18 or 19.
+That's it. `tabcoord` is a dependency — it installs automatically. Import everything from one package.
 
 ## Quick Start
 
 ```tsx
-import { createSharedStore } from 'tabcoord';
-import { useSharedStore } from 'tabcoord-react';
+import { createSharedStore, useSharedStore } from 'tabcoord-react';
 
-// Create a shared store (once, outside components)
-const cart = createSharedStore({
-  name: 'cart',
-  initial: { items: [] },
-});
+const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
 
-// Use in any component
 function Cart() {
   const items = useSharedStore(cart, s => s.items);
-
   return (
     <button onClick={() => cart.set(s => ({ items: [...s.items, 'Widget'] }))}>
-      Add Widget ({items.length})
+      Add ({items.length})
     </button>
   );
 }
 ```
 
-Open two tabs. Add an item in Tab A — it appears in Tab B automatically.
+Open two tabs. Add an item in Tab A — it appears in Tab B instantly.
 
-## API
+## What You Can Import
+
+All core APIs are re-exported from `tabcoord-react`:
+
+```tsx
+// React hooks
+import { useSharedStore, useSharedEvent, createStoreContext } from 'tabcoord-react';
+
+// Core APIs
+import { createSharedStore, eventBus, leaderElection, lockManager } from 'tabcoord-react';
+
+// Types
+import type { SharedStoreHandle, EventBus, Clock } from 'tabcoord-react';
+```
+
+## React Hooks
 
 ### `useSharedStore(store, selector)`
 
-React hook that reads state from a `SharedStoreHandle` and re-renders when the selected value changes.
+Reads state from a store and re-renders when the selected value changes.
 
 ```tsx
-// Select the whole state
-const state = useSharedStore(cart, s => s);
-
-// Select a specific field
-const count = useSharedStore(cart, s => s.count);
-
-// Select derived data
-const totalPrice = useSharedStore(cart, s => s.items.reduce((sum, i) => sum + i.price, 0));
+const count = useSharedStore(store, s => s.count);
+const total = useSharedStore(store, s => s.items.reduce((sum, i) => sum + i.price, 0));
 ```
 
-**Parameters:**
-- `store` — a `SharedStoreHandle` created by `createSharedStore`
-- `selector` — function that extracts the value you need
-
-**Returns:** The selected value (type-safe). Re-renders only when the selected value changes (shallow comparison).
+- **store** — a `SharedStoreHandle` from `createSharedStore()`
+- **selector** — function that extracts the value you need
+- Returns the selected value. Re-renders only when it changes (shallow comparison).
 
 ### `useSharedEvent(bus, event, handler)`
 
-React hook that listens to cross-tab events.
+Listens to cross-tab events.
 
 ```tsx
-import { eventBus } from 'tabcoord';
+import { eventBus } from 'tabcoord-react';
 import { useSharedEvent } from 'tabcoord-react';
 
 const bus = eventBus('notifications');
 
 function Toast() {
-  useSharedEvent(bus, 'user:login', (event) => {
-    showToast(`User ${event.payload.userId} logged in`);
+  useSharedEvent(bus, 'user:login', (e) => {
+    showToast(`User ${e.payload.userId} logged in`);
   });
-
   return <div>Toast container</div>;
 }
 ```
 
-**Parameters:**
-- `bus` — an `EventBus` created by `eventBus()`
-- `event` — event type string (supports `*` wildcard)
-- `handler` — callback function
-
-The handler is always the latest reference — no unnecessary re-subscriptions.
+- **bus** — an `EventBus` from `eventBus()`
+- **event** — event type string (supports `*` wildcard)
+- **handler** — always the latest reference, no unnecessary re-subscriptions
 
 ### `createStoreContext(options)`
 
-Creates a React Context for dependency injection (testing, SSR, multi-provider patterns).
+Creates a React Context for dependency injection (testing, SSR, multi-provider).
 
 ```tsx
-import { createStoreContext } from 'tabcoord-react';
+import { createStoreContext, useSharedStore } from 'tabcoord-react';
 
 const { Provider, useStore } = createStoreContext({
   name: 'cart',
   initial: { items: [] },
 });
 
-// Wrap your app with Provider
 function App() {
   return (
     <Provider>
@@ -108,7 +103,6 @@ function App() {
   );
 }
 
-// Use the store in child components
 function Cart() {
   const store = useStore();
   const items = useSharedStore(store, s => s.items);
@@ -116,19 +110,19 @@ function Cart() {
 }
 ```
 
-**Returns:**
-- `Provider` — wraps children, lazily creates the store on first mount, destroys on unmount
-- `useStore()` — returns the `SharedStoreHandle` (must be used inside `Provider`)
-- `store` — getter that returns the store handle
-
-Using `useStore()` outside a `Provider` throws an error.
+- `Provider` — wraps children, lazily creates store on first mount, destroys on unmount
+- `useStore()` — returns the store handle (must be inside `Provider`)
+- Throws if `useStore()` is used outside a `Provider`
 
 ## Full Example
 
 ```tsx
-import { createSharedStore } from 'tabcoord';
-import { useSharedStore, useSharedEvent } from 'tabcoord-react';
-import { eventBus } from 'tabcoord';
+import {
+  createSharedStore,
+  eventBus,
+  useSharedStore,
+  useSharedEvent,
+} from 'tabcoord-react';
 
 const cart = createSharedStore({
   name: 'cart',
@@ -166,23 +160,10 @@ function Cart() {
 }
 ```
 
-## TypeScript
+## Requirements
 
-Full type inference — no manual type annotations needed:
-
-```tsx
-interface CartState {
-  items: Array<{ name: string; price: number }>;
-}
-
-const cart = createSharedStore<CartState>({
-  name: 'cart',
-  initial: { items: [] },
-});
-
-// Automatically typed
-const items = useSharedStore(cart, s => s.items); // Array<{ name: string; price: number }>
-```
+- React 18 or 19
+- `tabcoord` is installed automatically (no manual install needed)
 
 ## License
 

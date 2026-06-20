@@ -23,8 +23,8 @@ pnpm build
 
 ```
 packages/
-  core/       @tabcoord/core      — The main library
-  react/      @tabcoord/react     — React hooks
+  core/       tabcoord       — The main library
+  react/      tabcoord-react — React hooks (re-exports core)
 
 demos/
   shared-cart/     — Shopping cart demo
@@ -58,10 +58,10 @@ demos/
 pnpm test
 
 # Run just core tests
-pnpm --filter @tabcoord/core test
+pnpm --filter tabcoord test
 
 # Run just react tests
-pnpm --filter @tabcoord/react test
+pnpm --filter tabcoord-react test
 
 # Run E2E tests
 pnpm test:e2e

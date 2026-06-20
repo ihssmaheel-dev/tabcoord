@@ -1,7 +1,8 @@
 // @ts-check
-// SSR smoke test — verifies @tabcoord/core works in a Node.js environment (no DOM/no BroadcastChannel)
+// SSR smoke test — verifies tabcoord works in a Node.js environment (no DOM/no BroadcastChannel)
 
-import { createSharedStore, getTabId, isPatch, diff, apply, eventBus } from './dist/index.js';
+import { createSharedStore, getTabId, isPatch, apply, eventBus } from './dist/index.js';
+import { diff } from './dist/diff-standalone.js';
 
 // 1. tabId works without DOM
 const tabId = getTabId();
@@ -23,7 +24,6 @@ console.assert(store.get().count === 2, 'setter function should work');
 console.log('✓ SSR store setter function works');
 
 // 3. subscribe is noop in SSR (no re-rendering)
-// In SSR mode, subscribe returns an empty function since there's no DOM to update
 const unsub = store.subscribe(() => { throw new Error('should not be called in SSR'); });
 console.assert(typeof unsub === 'function', 'subscribe should return a cleanup function');
 console.log('✓ SSR store subscribe returns cleanup function (noop)');
@@ -34,23 +34,20 @@ console.assert(store.get().count === 3, 'state update should work');
 console.log('✓ SSR store still works after subscribe');
 
 // 5. diff/apply/isPatch work in SSR
-const p = { a: 1, b: 2 };
-const n = { a: 1, b: 3 };
-const patch = diff(p, n);
+const patch = diff({ a: 1, b: 2 }, { a: 1, b: 3 });
 console.assert(isPatch(patch), 'should be a patch');
 console.assert(patch.b === 3, 'patch should contain changed fields');
 const result = apply({ a: 1, b: 2, c: 3 }, patch);
 console.assert(result.b === 3, 'apply should merge patch');
 console.log('✓ diff/apply/isPatch work');
 
-// 6. eventBus works in SSR (noop transport)
+// 6. eventBus works in SSR (noop transport, local handlers fire)
 const bus = eventBus('ssr-bus');
 let eventReceived = false;
 bus.on('test', () => { eventReceived = true; });
 bus.emit('test', { data: 1 });
-// Own messages are filtered — so handler should NOT fire
-console.assert(eventReceived === false, 'own events are filtered');
-console.log('✓ SSR eventBus works (noop, filtered)');
+console.assert(eventReceived === true, 'local event handler should fire');
+console.log('✓ SSR eventBus works (noop, local handler fires)');
 bus.destroy();
 
 // 7. Destroy idempotent

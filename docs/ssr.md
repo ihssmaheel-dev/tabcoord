@@ -1,6 +1,6 @@
 # SSR (Server-Side Rendering)
 
-TabSync works seamlessly with SSR frameworks like Next.js, Remix, and Nuxt.
+TabCoord works seamlessly with SSR frameworks like Next.js, Remix, and Nuxt.
 
 ## How It Works
 
@@ -29,7 +29,7 @@ Because the handle is a stable-identity wrapper class (not a Proxy), module-scop
 
 ```typescript
 // store.ts — safe to import anywhere
-import { createSharedStore } from '@tabcoord/core';
+import { createSharedStore } from 'tabcoord';
 export const cart = createSharedStore({ name: 'cart', initial: { items: [] } });
 
 // Component.tsx — works on server and client
